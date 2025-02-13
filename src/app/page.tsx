@@ -128,6 +128,7 @@ export default function Home() {
                 : undefined
             }
             settings={settings}
+            crt={settings.crt}
           />
           <div className="w-[380px]">
             <ControlPanel

@@ -22,13 +22,14 @@ interface PreviewCardProps {
     miscScale: number;
     miscRotate: number;
   };
+  crt: boolean;
 }
 
 interface ImageDimensions {
-    naturalWidth: number;
-    naturalHeight: number;
-    width: number;
-    height: number;
+  naturalWidth: number;
+  naturalHeight: number;
+  width: number;
+  height: number;
 }
 
 export const PreviewCard: React.FC<PreviewCardProps> = ({
@@ -40,11 +41,14 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
   characterUrl,
   miscUrl,
   settings,
+  crt,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [characterDimensions, setCharacterDimensions] =
     useState<ImageDimensions | null>(null);
-  const [miscDimensions, setMiscDimensions] = useState<ImageDimensions | null>(null);
+  const [miscDimensions, setMiscDimensions] = useState<ImageDimensions | null>(
+    null
+  );
 
   const CANVAS_WIDTH = 460;
   const CANVAS_HEIGHT = 595;
@@ -156,8 +160,10 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
           <div
             className="absolute"
             style={{
-              left: calculateMiscPosition(settings.miscPosX, settings.miscPosY).left,
-              top: calculateMiscPosition(settings.miscPosX, settings.miscPosY).top,
+              left: calculateMiscPosition(settings.miscPosX, settings.miscPosY)
+                .left,
+              top: calculateMiscPosition(settings.miscPosX, settings.miscPosY)
+                .top,
               width: miscDimensions.width,
               height: miscDimensions.height,
               transform: `rotate(${settings.miscRotate}deg)`,
@@ -175,6 +181,17 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
               }}
             />
           </div>
+        )}
+
+        {crt && (
+          <Image
+            src="/crt.png"
+            alt="CRT Effect"
+            width={460}
+            height={595}
+            className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay"
+            priority
+          />
         )}
 
         {isGenerating && (
