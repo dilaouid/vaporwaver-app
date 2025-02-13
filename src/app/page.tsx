@@ -140,7 +140,7 @@ export default function Home() {
 
         <footer className="text-center mt-8">
           <a
-            href="https://github.com/dilaouid/vaporwaver-ts"
+            href="https://github.com/dilaouid/vaporwaver"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-purple-400 transition-colors"
