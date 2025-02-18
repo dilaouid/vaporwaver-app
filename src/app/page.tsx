@@ -2,12 +2,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { VaporwaverSettings } from "@/app/types/vaporwaver";
 import { Github } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { PreviewCard } from "@/components/molecules/PreviewCard/PreviewCard";
-import { ControlPanel } from "@/components/organisms/ControlPanel/ControlPanel";
-import { AnimatedTitle } from "@/components/molecules/AnimatedTitle/AnimateTitle";
 import { useEffectsPreview } from "@/hooks/use-effects-preview";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
+import FinalPreviewModal from "@/components/molecules/FinalPreviewModal/FinalPreviewModal";
+import { AnimatedTitle } from "@/components/molecules/AnimatedTitle/AnimateTitle";
+import { PreviewCard } from "@/components/molecules/PreviewCard/PreviewCard";
+import { ControlPanel } from "@/components/organisms/ControlPanel/ControlPanel";
 
 const initialSettings: VaporwaverSettings = {
   characterPath: "",
@@ -28,134 +28,46 @@ const initialSettings: VaporwaverSettings = {
 };
 
 export default function Home() {
-  // Main state
   const [settings, setSettings] = useState<VaporwaverSettings>(initialSettings);
-  const [, setGeneratedPreviewUrl] = useState("/api/placeholder/460/595");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [characterUrl, setCharacterUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
+  const { storeCharacter } = useCharacterStorage();
 
-  const { toast } = useToast();
-  const { storeCharacter, getCharacterUrl } = useCharacterStorage();
+  const { isLoading: effectsLoading, previewImage } = useEffectsPreview(settings, isDragging);
 
-  // Effects preview hook
-  const { 
-    isLoading: effectsLoading, 
-    previewImage
-  } = useEffectsPreview(settings, isDragging);
+  const backgroundUrl = useMemo(() => `/backgrounds/${settings.background}.png`, [settings.background]);
+  const miscUrl = useMemo(() => (settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined), [settings.misc]);
 
-  // Memoize background URL to prevent unnecessary re-renders
-  const backgroundUrl = useMemo(() => 
-    `/backgrounds/${settings.background}.png`,
-    [settings.background]
-  );
-
-  // Memoize misc URL to prevent unnecessary re-renders
-  const miscUrl = useMemo(() => 
-    settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined, 
-    [settings.misc]
-  );
-
-  // Settings change handler with performance optimization
   const handleSettingsChange = useCallback((newSettings: Partial<VaporwaverSettings>) => {
-    setSettings(prev => {
-      // Only update if values actually changed
+    setSettings((prev) => {
       const hasChanges = Object.entries(newSettings).some(
         ([key, value]) => prev[key as keyof VaporwaverSettings] !== value
       );
-      
       return hasChanges ? { ...prev, ...newSettings } : prev;
     });
   }, []);
 
-  // Handle drag state changes across the application
   const handleDragStateChange = useCallback((dragging: boolean) => {
     setIsDragging(dragging);
   }, []);
 
-  // Generate final preview handler
-  const handleGeneratePreview = useCallback(async () => {
-    if (!settings.characterPath) {
-      toast({
-        title: "Character Required",
-        description: "Please select a character image to generate a preview.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const formData = new FormData();
-
-      // Add all settings to form data
-      Object.entries(settings).forEach(([key, value]) => {
-        if (value instanceof File) {
-          formData.append(key, value);
-        } else {
-          formData.append(key, String(value));
-        }
-      });
-
-      const response = await fetch("/api/generate-preview", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Failed to generate preview: ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-      setGeneratedPreviewUrl(data.previewUrl);
-
-      toast({
-        title: "Preview Generated",
-        description: "Your vaporwave image has been generated successfully!",
-      });
-    } catch (error) {
-      console.error("Generation error:", error);
-      toast({
-        title: "Generation Failed",
-        description: error instanceof Error 
-          ? error.message 
-          : "An error occurred while generating the preview.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [settings, toast]);
-
-  // File change handler
   const handleFileChange = useCallback(async (file: File) => {
     if (characterUrl) {
       URL.revokeObjectURL(characterUrl);
     }
-    // store the character in local storage
     await storeCharacter(file);
     const url = URL.createObjectURL(file);
     setCharacterUrl(url);
     handleSettingsChange({ characterPath: file });
   }, [characterUrl, storeCharacter, handleSettingsChange]);
-  
 
+  // Clear localStorage au chargement
   useEffect(() => {
     localStorage.clear();
   }, []);
 
-  // Load stored character on component mount
-  useEffect(() => {
-    const storedCharacterUrl = getCharacterUrl();
-    if (storedCharacterUrl) {
-      setCharacterUrl(storedCharacterUrl);
-    }
-  }, [getCharacterUrl]);
-  
-  // Cleanup object URLs on unmount
   useEffect(() => {
     return () => {
       if (characterUrl) {
@@ -168,11 +80,18 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-indigo-900">
       <main className="container mx-auto px-4 py-8">
         <AnimatedTitle />
-
+        {modalOpen && modalImageUrl && (
+          <FinalPreviewModal
+            imageUrl={modalImageUrl}
+            onClose={() => {
+              setModalOpen(false);
+              URL.revokeObjectURL(modalImageUrl);
+              setModalImageUrl(null);
+            }}
+          />
+        )}
         <div className="flex flex-col lg:flex-row justify-center gap-4 mt-8">
           <PreviewCard
-            isGenerating={isGenerating}
-            onGenerate={handleGeneratePreview}
             backgroundUrl={backgroundUrl}
             characterUrl={characterUrl}
             miscUrl={miscUrl}
@@ -181,7 +100,6 @@ export default function Home() {
             effectPreviewUrl={previewImage}
             isEffectLoading={effectsLoading && !isDragging}
           />
-          
           <div className="w-full lg:w-[380px]">
             <ControlPanel
               settings={settings}
@@ -192,7 +110,6 @@ export default function Home() {
             />
           </div>
         </div>
-
         <footer className="text-center mt-8">
           <a
             href="https://github.com/dilaouid/vaporwaver"
