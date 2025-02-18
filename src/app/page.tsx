@@ -143,6 +143,10 @@ export default function Home() {
   }, [characterUrl, storeCharacter, handleSettingsChange]);
   
 
+  useEffect(() => {
+    localStorage.clear();
+  }, []);
+
   // Load stored character on component mount
   useEffect(() => {
     const storedCharacterUrl = getCharacterUrl();
