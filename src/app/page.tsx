@@ -1,11 +1,13 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { VaporwaverSettings } from "@/app/types/vaporwaver";
 import { Github } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PreviewCard } from "@/components/molecules/PreviewCard/PreviewCard";
 import { ControlPanel } from "@/components/organisms/ControlPanel/ControlPanel";
 import { AnimatedTitle } from "@/components/molecules/AnimatedTitle/AnimateTitle";
+import { useEffectsPreview } from "@/hooks/use-effects-preview";
+import { useCharacterStorage } from "@/hooks/use-character-storage";
 
 const initialSettings: VaporwaverSettings = {
   characterPath: "",
@@ -26,18 +28,53 @@ const initialSettings: VaporwaverSettings = {
 };
 
 export default function Home() {
+  // Main state
   const [settings, setSettings] = useState<VaporwaverSettings>(initialSettings);
-  const [previewUrl, setPreviewUrl] = useState("/api/placeholder/460/595");
+  const [, setGeneratedPreviewUrl] = useState("/api/placeholder/460/595");
   const [isGenerating, setIsGenerating] = useState(false);
   const [characterUrl, setCharacterUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const { toast } = useToast();
+  const { storeCharacter, getCharacterUrl } = useCharacterStorage();
 
-  const handleSettingsChange = (newSettings: Partial<VaporwaverSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
-  };
+  // Effects preview hook
+  const { 
+    isLoading: effectsLoading, 
+    previewImage
+  } = useEffectsPreview(settings, isDragging);
 
-  const handleGeneratePreview = async () => {
+  // Memoize background URL to prevent unnecessary re-renders
+  const backgroundUrl = useMemo(() => 
+    `/backgrounds/${settings.background}.png`,
+    [settings.background]
+  );
+
+  // Memoize misc URL to prevent unnecessary re-renders
+  const miscUrl = useMemo(() => 
+    settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined, 
+    [settings.misc]
+  );
+
+  // Settings change handler with performance optimization
+  const handleSettingsChange = useCallback((newSettings: Partial<VaporwaverSettings>) => {
+    setSettings(prev => {
+      // Only update if values actually changed
+      const hasChanges = Object.entries(newSettings).some(
+        ([key, value]) => prev[key as keyof VaporwaverSettings] !== value
+      );
+      
+      return hasChanges ? { ...prev, ...newSettings } : prev;
+    });
+  }, []);
+
+  // Handle drag state changes across the application
+  const handleDragStateChange = useCallback((dragging: boolean) => {
+    setIsDragging(dragging);
+  }, []);
+
+  // Generate final preview handler
+  const handleGeneratePreview = useCallback(async () => {
     if (!settings.characterPath) {
       toast({
         title: "Character Required",
@@ -50,6 +87,8 @@ export default function Home() {
     setIsGenerating(true);
     try {
       const formData = new FormData();
+
+      // Add all settings to form data
       Object.entries(settings).forEach(([key, value]) => {
         if (value instanceof File) {
           formData.append(key, value);
@@ -63,10 +102,15 @@ export default function Home() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Failed to generate preview");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to generate preview: ${response.status}`
+        );
+      }
 
       const data = await response.json();
-      setPreviewUrl(data.previewUrl);
+      setGeneratedPreviewUrl(data.previewUrl);
 
       toast({
         title: "Preview Generated",
@@ -76,34 +120,40 @@ export default function Home() {
       console.error("Generation error:", error);
       toast({
         title: "Generation Failed",
-        description: "An error occurred while generating the preview.",
+        description: error instanceof Error 
+          ? error.message 
+          : "An error occurred while generating the preview.",
         variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [settings, toast]);
 
-  const handleFileChange = (file: File) => {
-    console.log("New character file:", file); // Pour déboguer
-    
-    // Révoquer l'ancienne URL si elle existe
+  // File change handler
+  const handleFileChange = useCallback(async (file: File) => {
     if (characterUrl) {
       URL.revokeObjectURL(characterUrl);
     }
-
-    // Créer une nouvelle URL pour le fichier
+    // store the character in local storage
+    await storeCharacter(file);
     const url = URL.createObjectURL(file);
-    console.log("New character URL:", url); // Pour déboguer
     setCharacterUrl(url);
     handleSettingsChange({ characterPath: file });
-  };
+  }, [characterUrl, storeCharacter, handleSettingsChange]);
+  
 
-  // Nettoyer les URLs lors du démontage du composant
+  // Load stored character on component mount
+  useEffect(() => {
+    const storedCharacterUrl = getCharacterUrl();
+    if (storedCharacterUrl) {
+      setCharacterUrl(storedCharacterUrl);
+    }
+  }, [getCharacterUrl]);
+  
+  // Cleanup object URLs on unmount
   useEffect(() => {
     return () => {
-      console.log(characterUrl);
-
       if (characterUrl) {
         URL.revokeObjectURL(characterUrl);
       }
@@ -115,26 +165,26 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8">
         <AnimatedTitle />
 
-        <div className="flex justify-center gap-4 mt-8">
+        <div className="flex flex-col lg:flex-row justify-center gap-4 mt-8">
           <PreviewCard
-            previewUrl={previewUrl}
             isGenerating={isGenerating}
             onGenerate={handleGeneratePreview}
-            backgroundUrl={`/backgrounds/${settings.background}.png`}
+            backgroundUrl={backgroundUrl}
             characterUrl={characterUrl}
-            miscUrl={
-              settings.misc !== "none"
-                ? `/miscs/${settings.misc}.png`
-                : undefined
-            }
+            miscUrl={miscUrl}
             settings={settings}
             crt={settings.crt}
+            effectPreviewUrl={previewImage}
+            isEffectLoading={effectsLoading && !isDragging}
           />
-          <div className="w-[380px]">
+          
+          <div className="w-full lg:w-[380px]">
             <ControlPanel
               settings={settings}
               onSettingsChange={handleSettingsChange}
               onFileChange={handleFileChange}
+              isLoading={effectsLoading && !isDragging}
+              onDragStateChange={handleDragStateChange}
             />
           </div>
         </div>
