@@ -1,59 +1,42 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { VaporwaverSettings } from "@/app/types/vaporwaver";
 
+import { useStore } from "@/store/useStore";
 import { useEffectsPreview } from "@/hooks/use-effects-preview";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
-import { AnimatedTitle, PreviewCard, Footer, FinalPreviewModal } from "@/components/molecules";
+import {
+  AnimatedTitle,
+  PreviewCard,
+  Footer,
+  FinalPreviewModal,
+} from "@/components/molecules";
 import { ControlPanel } from "@/components/organisms";
-
-const initialSettings: VaporwaverSettings = {
-  characterPath: "",
-  background: "default",
-  misc: "none",
-  miscPosX: 0,
-  miscPosY: 0,
-  miscScale: 100,
-  miscRotate: 0,
-  characterXPos: 0,
-  characterYPos: 0,
-  characterScale: 100,
-  characterRotate: 0,
-  characterGlitch: 0.1,
-  characterGlitchSeed: 0,
-  characterGradient: "none",
-  crt: false,
-};
 
 export default function Home() {
   // États principaux
-  const [settings, setSettings] = useState<VaporwaverSettings>(initialSettings);
-  const [characterUrl, setCharacterUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
 
   // Hooks personnalisés
+  const { settings, characterUrl, setSettings, setCharacterUrl } = useStore();
   const { storeCharacter } = useCharacterStorage();
-  const { isLoading: effectsLoading, previewImage } = useEffectsPreview(settings, isDragging);
-
-  // URL dérivées pour le background et le misc
-  const backgroundUrl = useMemo(() => `/backgrounds/${settings.background}.png`, [settings.background]);
-  const miscUrl = useMemo(
-    () => (settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined),
-    [settings.misc]
+  const { isLoading: effectsLoading, previewImage } = useEffectsPreview(
+    settings,
+    isDragging
   );
 
-  // Handler pour mettre à jour les settings
-  const handleSettingsChange = useCallback((newSettings: Partial<VaporwaverSettings>) => {
-    setSettings((prev) => {
-      const hasChanges = Object.entries(newSettings).some(
-        ([key, value]) => prev[key as keyof VaporwaverSettings] !== value
-      );
-      return hasChanges ? { ...prev, ...newSettings } : prev;
-    });
-  }, []);
+  // URL dérivées pour le background et le misc
+  const backgroundUrl = useMemo(
+    () => `/backgrounds/${settings.background}.png`,
+    [settings.background]
+  );
+  const miscUrl = useMemo(
+    () =>
+      settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined,
+    [settings.misc]
+  );
 
   // Handler pour le drag
   const handleDragStateChange = useCallback((dragging: boolean) => {
@@ -69,9 +52,9 @@ export default function Home() {
       await storeCharacter(file);
       const url = URL.createObjectURL(file);
       setCharacterUrl(url);
-      handleSettingsChange({ characterPath: file });
+      setSettings({ characterPath: file });
     },
-    [characterUrl, storeCharacter, handleSettingsChange]
+    [characterUrl, storeCharacter, setSettings, setCharacterUrl]
   );
 
   // Nettoyage du localStorage lors du montage
@@ -88,26 +71,22 @@ export default function Home() {
     };
   }, [characterUrl]);
 
-  // Rendu de la modal finale
-  const renderModal = () => {
-    if (!modalOpen || !modalImageUrl) return null;
-    return (
-      <FinalPreviewModal
-        imageUrl={modalImageUrl}
-        onClose={() => {
-          setModalOpen(false);
-          URL.revokeObjectURL(modalImageUrl);
-          setModalImageUrl(null);
-        }}
-      />
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-indigo-900">
       <main className="container mx-auto px-4 py-8">
         <AnimatedTitle />
-        {renderModal()}
+
+        { modalOpen && modalImageUrl && (
+          <FinalPreviewModal
+            imageUrl={modalImageUrl}
+            onClose={() => {
+              setModalOpen(false);
+              URL.revokeObjectURL(modalImageUrl);
+              setModalImageUrl(null);
+            }}
+          />
+        ) }
+  
         <div className="flex flex-col lg:flex-row justify-center gap-4 mt-8">
           <PreviewCard
             backgroundUrl={backgroundUrl}
@@ -121,7 +100,7 @@ export default function Home() {
           <div className="w-full lg:w-[380px]">
             <ControlPanel
               settings={settings}
-              onSettingsChange={handleSettingsChange}
+              onSettingsChange={setSettings}
               onFileChange={handleFileChange}
               isLoading={effectsLoading && !isDragging}
               onDragStateChange={handleDragStateChange}
