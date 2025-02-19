@@ -32,3 +32,15 @@ export interface PreviewGenerationResponse {
     previewUrl: string;
     error?: string;
 }
+
+export interface Assets {
+  backgrounds: ImageOption[];
+  miscs: ImageOption[];
+}
+
+export interface ImageDimensions {
+  naturalWidth: number;
+  naturalHeight: number;
+  width: number;
+  height: number;
+}

@@ -1,11 +1,10 @@
 "use client";
-
 import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { VaporwaverSettings } from "@/app/types/vaporwaver";
+import { ImageDimensions, VaporwaverSettings } from "@/app/types/vaporwaver";
 import { FinalPreviewModal } from "@/components/molecules/FinalPreviewModal";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
 import { blobToBase64 } from "@/lib/base64";
@@ -19,13 +18,6 @@ interface PreviewCardProps {
   crt: boolean;
   effectPreviewUrl?: string | null;
   isEffectLoading?: boolean;
-}
-
-interface ImageDimensions {
-  naturalWidth: number;
-  naturalHeight: number;
-  width: number;
-  height: number;
 }
 
 export const PreviewCard: React.FC<PreviewCardProps> = ({
@@ -46,17 +38,14 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const { getStoredCharacter } = useCharacterStorage();
 
-  // Constantes du canvas
   const CANVAS_WIDTH = 460;
   const CANVAS_HEIGHT = 595;
 
   const needsApiPreview = useMemo(
-    () =>
-      settings.characterGlitch > 0.1 || settings.characterGradient !== "none",
+    () => settings.characterGlitch > 0.1 || settings.characterGradient !== "none",
     [settings.characterGlitch, settings.characterGradient]
   );
 
-  // MàJ des dimensions du personnage
   useEffect(() => {
     if (characterUrl) {
       const img = document.createElement("img");
@@ -73,7 +62,6 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
     }
   }, [characterUrl, settings.characterScale]);
 
-  // MàJ des dimensions du misc
   useEffect(() => {
     if (miscUrl && miscUrl !== "/miscs/none.png") {
       const img = document.createElement("img");
@@ -90,33 +78,25 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
     }
   }, [miscUrl, settings.miscScale]);
 
-  // Calcul de la position du personnage (anchor=center)
-  const calculateCharacterPosition = (
-    xPos: number,
-    yPos: number,
-    dimensions: { width: number; height: number }
-  ) => {
-    return {
+  const calculateCharacterPosition = useCallback(
+    (xPos: number, yPos: number, dimensions: { width: number; height: number }) => ({
       left: (CANVAS_WIDTH * xPos) / 100 - dimensions.width / 2,
       top: (CANVAS_HEIGHT * yPos) / 100 - dimensions.height / 2,
-    };
-  };
+    }),
+    [CANVAS_WIDTH, CANVAS_HEIGHT]
+  );
 
-  // Calcul de la position du misc (anchor=NW)
-  const calculateMiscPosition = (
-    xPos: number,
-    yPos: number,
-    canvasWidth: number,
-    canvasHeight: number
-  ) => {
-    if (!miscDimensions) return { left: 0, top: 0 };
-    return {
-      left: (canvasWidth * xPos) / 100,
-      top: (canvasHeight * yPos) / 100,
-    };
-  };
+  const calculateMiscPosition = useCallback(
+    (xPos: number, yPos: number, canvasWidth: number, canvasHeight: number) => {
+      if (!miscDimensions) return { left: 0, top: 0 };
+      return {
+        left: (canvasWidth * xPos) / 100,
+        top: (canvasHeight * yPos) / 100,
+      };
+    },
+    [miscDimensions]
+  );
 
-  // Fonction de génération finale
   const handleGenerateFinal = useCallback(async () => {
     if (!settings.characterPath) {
       alert("Please select a character image to generate a preview.");
@@ -126,7 +106,6 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
     try {
       const formData = new FormData();
       let processedBase64: string | null = null;
-  
       if (effectPreviewUrl) {
         const res = await fetch(effectPreviewUrl);
         const blob = await res.blob();
@@ -138,19 +117,13 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
         throw new Error("No processed character data available");
       }
       formData.append("characterPathBase64", processedBase64);
-  
-      // Envoyer les options de positionnement, scale, rotation...
       formData.append("characterXPos", String(settings.characterXPos));
       formData.append("characterYPos", String(settings.characterYPos));
       formData.append("characterScale", String(settings.characterScale));
       formData.append("characterRotate", String(settings.characterRotate));
-  
-      // On force les options d'effets à leurs valeurs par défaut (pas de glitch, gradient none)
       formData.append("characterGlitch", String(0.1));
       formData.append("characterGlitchSeed", String(0));
       formData.append("characterGradient", "none");
-  
-      // Envoyer misc et background
       formData.append("misc", settings.misc);
       formData.append("miscPosX", String(settings.miscPosX));
       formData.append("miscPosY", String(settings.miscPosY));
@@ -178,14 +151,12 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
     } finally {
       setIsFinalGenerating(false);
     }
-  }, [settings, effectPreviewUrl, getStoredCharacter]);  
+  }, [settings, effectPreviewUrl, getStoredCharacter]);
 
   return (
     <div className={cn("w-full lg:w-[460px] flex flex-col gap-4", className)}>
       <div ref={containerRef} className="h-[595px] relative rounded-lg overflow-hidden bg-black/40 shadow-xl">
-        {/* Background Layer */}
         <Image src={backgroundUrl} alt="Background" width={460} height={595} className="object-cover absolute inset-0" priority />
-        
         {needsApiPreview ? (
           <>
             {isEffectLoading && (
@@ -284,7 +255,6 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
             )}
           </>
         )}
-
         {crt && (
           <Image
             src="/crt.png"
@@ -295,7 +265,6 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
             priority
           />
         )}
-
         {isFinalGenerating && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
             <div className="flex flex-col items-center gap-3">
@@ -305,7 +274,6 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
           </div>
         )}
       </div>
-
       <Button
         className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium py-6"
         onClick={handleGenerateFinal}
@@ -313,7 +281,6 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
       >
         {isFinalGenerating ? "Generating..." : "Generate Preview"}
       </Button>
-
       {modalOpen && finalModalImageUrl && (
         <FinalPreviewModal
           imageUrl={finalModalImageUrl}

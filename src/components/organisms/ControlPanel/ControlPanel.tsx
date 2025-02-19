@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ImageOption, VaporwaverSettings } from "@/app/types/vaporwaver";
+import { VaporwaverSettings } from "@/app/types/vaporwaver";
 import { ImageSelector } from "@/components/molecules/ImageSelector/ImageSelector";
 import { ControlGroup } from "@/components/molecules/ControlGroup/ControlGroup";
 
@@ -13,9 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
 import { FileInput } from "@/components/molecules/FileInput/FileInput";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useStore } from "@/store/useStore";
+import { useAssets } from "@/hooks/use-assets";
 
 // Mapping des gradients avec un aperçu de couleur
 const gradientPreviews: { [key: string]: string } = {
@@ -76,59 +77,27 @@ const EFFECT_CONTROLS = [
   "characterGradient",
 ];
 
-interface Assets {
-  backgrounds: ImageOption[];
-  miscs: ImageOption[];
-}
-
 interface ControlPanelProps {
   settings: VaporwaverSettings;
   onSettingsChange: (settings: Partial<VaporwaverSettings>) => void;
   onFileChange: (file: File) => void;
-  isLoading?: boolean;
+  isLoading: boolean;
   onDragStateChange: (dragging: boolean) => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
-  settings,
-  onSettingsChange,
   onFileChange,
-  isLoading = false,
   onDragStateChange,
+  isLoading,
 }) => {
-  const [assets, setAssets] = useState<Assets>({
-    backgrounds: [],
-    miscs: [],
-  });
+  const { data: assets, isLoading: assetsLoading } = useAssets();
   const [scrollInfo, setScrollInfo] = useState({
     canScrollUp: false,
     canScrollDown: false,
   });
   const [anyControlDragging, setAnyControlDragging] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-
-  // Fetch available assets on mount
-  useEffect(() => {
-    const fetchAssets = async () => {
-      try {
-        const response = await fetch("/api/assets");
-        if (!response.ok) throw new Error("Failed to fetch assets");
-        const data = await response.json();
-        setAssets(data);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: `Failed to load image assets: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-          variant: "destructive",
-        });
-      }
-    };
-
-    fetchAssets();
-  }, [toast]);
+  const { settings, setSettings } = useStore();
 
   const checkScrollPosition = useCallback(() => {
     if (scrollContainerRef.current) {
@@ -166,9 +135,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       key: keyof VaporwaverSettings,
       value: VaporwaverSettings[keyof VaporwaverSettings]
     ) => {
-      onSettingsChange({ [key]: value });
+      setSettings({ [key]: value });
     },
-    [onSettingsChange]
+    [setSettings]
   );
 
   const handleDragStateChange = useCallback(
@@ -212,7 +181,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       >
         {/* Loading overlay */}
         {isLoading && !anyControlDragging && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 rounded">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
               <p className="text-purple-200 text-sm font-medium">
@@ -222,209 +191,234 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         )}
 
-        {/* Background */}
-        <section className="space-y-4">
-          <h3 className="text-lg font-semibold text-purple-300">Background</h3>
-          <ImageSelector
-            label="Background Image"
-            options={assets.backgrounds}
-            value={settings.background}
-            onChange={(value) => onSettingsChange({ background: value })}
-          />
-        </section>
-
-        {/* Character */}
-        <section className="space-y-4">
-          <h3 className="text-lg font-semibold text-purple-300">
-            Character
-            <span className="ml-2 text-xs font-normal text-purple-400/80">
-              * = Applied via API
+        {assetsLoading && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+            <span className="text-purple-500 text-sm font-medium ml-3">
+              Loading assets...
             </span>
-          </h3>
-          <div className="space-y-4">
-            <FileInput label="Character Image" onChange={onFileChange} />
+          </div>
+        )}
+        {!assetsLoading && assets && (
+          <>
+            {/* Background */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-purple-300">
+                Background
+              </h3>
+              <ImageSelector
+                label="Background Image"
+                options={assets.backgrounds}
+                value={settings.background}
+                onChange={(value) => setSettings({ background: value })}
+              />
+            </section>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-3">
-                <ControlGroup
-                  label="Position X"
-                  value={settings.characterXPos}
-                  min={-100}
-                  max={100}
-                  onChange={(value) => updateSettings("characterXPos", value)}
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-                <ControlGroup
-                  label="Scale"
-                  value={settings.characterScale}
-                  min={1}
-                  max={200}
-                  onChange={(value) => updateSettings("characterScale", value)}
-                  unit="%"
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-                <ControlGroup
-                  label="Glitch"
-                  value={settings.characterGlitch}
-                  min={0.1}
-                  max={10}
-                  step={0.1}
-                  onChange={(value) => updateSettings("characterGlitch", value)}
-                  onDragStateChange={handleDragStateChange}
-                  isEffectControl={isEffectRelated("characterGlitch")}
-                />
-              </div>
-              <div className="space-y-3">
-                <ControlGroup
-                  label="Position Y"
-                  value={settings.characterYPos}
-                  min={-100}
-                  max={100}
-                  onChange={(value) => updateSettings("characterYPos", value)}
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-                <ControlGroup
-                  label="Rotation"
-                  value={settings.characterRotate}
-                  min={-360}
-                  max={360}
-                  onChange={(value) => updateSettings("characterRotate", value)}
-                  unit="°"
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-                <ControlGroup
-                  label="Seed"
-                  value={settings.characterGlitchSeed}
-                  min={0}
-                  max={100}
-                  onChange={(value) =>
-                    updateSettings("characterGlitchSeed", value)
-                  }
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                  isEffectControl={isEffectRelated("characterGlitchSeed")}
-                />
-              </div>
-            </div>
+            {/* Character */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-purple-300">
+                Character
+                <span className="ml-2 text-xs font-normal text-purple-400/80">
+                  * = Applied via API
+                </span>
+              </h3>
+              <div className="space-y-4">
+                <FileInput label="Character Image" onChange={onFileChange} />
 
-            <div className="space-y-2">
-              <Label className="text-gray-200">
-                Gradient
-                <span className="ml-1 text-purple-400 text-xs">*</span>
-              </Label>
-              <Select
-                value={settings.characterGradient}
-                onValueChange={handleGradientChange}
-              >
-                <SelectTrigger className="bg-black/50 border-purple-500/50 text-gray-200">
-                  <SelectValue placeholder="Select gradient" />
-                </SelectTrigger>
-                <SelectContent className="bg-black/90 backdrop-blur-md border-purple-500/50">
-                  {gradients.map((gradient) => (
-                    <SelectItem
-                      key={gradient}
-                      value={gradient}
-                      className="text-gray-200 flex items-center gap-2 bg-transparent hover:bg-transparent"
-                    >
-                      {/* Swatch de couleur */}
-                      {gradient !== "none" &&
-                        <span
-                          className="inline-block w-5 h-5 rounded-full mr-2"
-                          style={{
-                            backgroundImage: gradientPreviews[gradient],
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    <ControlGroup
+                      label="Position X"
+                      value={settings.characterXPos}
+                      min={-100}
+                      max={100}
+                      onChange={(value) =>
+                        updateSettings("characterXPos", value)
                       }
-                      <span>
-                        {gradient.charAt(0).toUpperCase() + gradient.slice(1)}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </section>
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                    <ControlGroup
+                      label="Scale"
+                      value={settings.characterScale}
+                      min={1}
+                      max={200}
+                      onChange={(value) =>
+                        updateSettings("characterScale", value)
+                      }
+                      unit="%"
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                    <ControlGroup
+                      label="Glitch"
+                      value={settings.characterGlitch}
+                      min={0.1}
+                      max={10}
+                      step={0.1}
+                      onChange={(value) =>
+                        updateSettings("characterGlitch", value)
+                      }
+                      onDragStateChange={handleDragStateChange}
+                      isEffectControl={isEffectRelated("characterGlitch")}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <ControlGroup
+                      label="Position Y"
+                      value={settings.characterYPos}
+                      min={-100}
+                      max={100}
+                      onChange={(value) =>
+                        updateSettings("characterYPos", value)
+                      }
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                    <ControlGroup
+                      label="Rotation"
+                      value={settings.characterRotate}
+                      min={-360}
+                      max={360}
+                      onChange={(value) =>
+                        updateSettings("characterRotate", value)
+                      }
+                      unit="°"
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                    <ControlGroup
+                      label="Seed"
+                      value={settings.characterGlitchSeed}
+                      min={0}
+                      max={100}
+                      onChange={(value) =>
+                        updateSettings("characterGlitchSeed", value)
+                      }
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                      isEffectControl={isEffectRelated("characterGlitchSeed")}
+                    />
+                  </div>
+                </div>
 
-        {/* Misc Item */}
-        <section className="space-y-4">
-          <h3 className="text-lg font-semibold text-purple-300 mb-2">
-            Misc Item
-          </h3>
-          <div className="space-y-4">
-            <ImageSelector
-              label="Misc Item"
-              options={assets.miscs}
-              value={settings.misc}
-              onChange={(value) => onSettingsChange({ misc: value })}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-3">
-                <ControlGroup
-                  label="Position X"
-                  value={settings.miscPosX}
-                  min={-100}
-                  max={100}
-                  onChange={(value) => updateSettings("miscPosX", value)}
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-                <ControlGroup
-                  label="Scale"
-                  value={settings.miscScale}
-                  min={1}
-                  max={200}
-                  onChange={(value) => updateSettings("miscScale", value)}
-                  unit="%"
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
+                <div className="space-y-2">
+                  <Label className="text-gray-200">
+                    Gradient
+                    <span className="ml-1 text-purple-400 text-xs">*</span>
+                  </Label>
+                  <Select
+                    value={settings.characterGradient}
+                    onValueChange={handleGradientChange}
+                  >
+                    <SelectTrigger className="bg-black/50 border-purple-500/50 text-gray-200">
+                      <SelectValue placeholder="Select gradient" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black/90 backdrop-blur-md border-purple-500/50">
+                      {gradients.map((gradient) => (
+                        <SelectItem
+                          key={gradient}
+                          value={gradient}
+                          className="text-gray-200 flex items-center gap-2 bg-transparent hover:bg-transparent"
+                        >
+                          {/* Swatch de couleur */}
+                          {gradient !== "none" && (
+                            <span
+                              className="inline-block w-5 h-5 rounded-full mr-2"
+                              style={{
+                                backgroundImage: gradientPreviews[gradient],
+                                backgroundSize: "cover",
+                                backgroundPosition: "center",
+                              }}
+                            />
+                          )}
+                          <span>
+                            {gradient.charAt(0).toUpperCase() +
+                              gradient.slice(1)}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-3">
-                <ControlGroup
-                  label="Position Y"
-                  value={settings.miscPosY}
-                  min={-100}
-                  max={100}
-                  onChange={(value) => updateSettings("miscPosY", value)}
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-                <ControlGroup
-                  label="Rotation"
-                  value={settings.miscRotate}
-                  min={-360}
-                  max={360}
-                  onChange={(value) => updateSettings("miscRotate", value)}
-                  unit="°"
-                  step={1}
-                  onDragStateChange={handleDragStateChange}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+            </section>
 
-        {/* Effects */}
-        <section className="space-y-4">
-          <h3 className="text-lg font-semibold text-purple-300 mb-2">
-            Effects
-          </h3>
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={settings.crt}
-              onCheckedChange={(checked) => onSettingsChange({ crt: checked })}
-            />
-            <Label className="text-gray-200">CRT Effect</Label>
-          </div>
-        </section>
+            {/* Misc Item */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-purple-300 mb-2">
+                Misc Item
+              </h3>
+              <div className="space-y-4">
+                <ImageSelector
+                  label="Misc Item"
+                  options={assets.miscs}
+                  value={settings.misc}
+                  onChange={(value) => setSettings({ misc: value })}
+                />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    <ControlGroup
+                      label="Position X"
+                      value={settings.miscPosX}
+                      min={-100}
+                      max={100}
+                      onChange={(value) => updateSettings("miscPosX", value)}
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                    <ControlGroup
+                      label="Scale"
+                      value={settings.miscScale}
+                      min={1}
+                      max={200}
+                      onChange={(value) => updateSettings("miscScale", value)}
+                      unit="%"
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <ControlGroup
+                      label="Position Y"
+                      value={settings.miscPosY}
+                      min={-100}
+                      max={100}
+                      onChange={(value) => updateSettings("miscPosY", value)}
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                    <ControlGroup
+                      label="Rotation"
+                      value={settings.miscRotate}
+                      min={-360}
+                      max={360}
+                      onChange={(value) => updateSettings("miscRotate", value)}
+                      unit="°"
+                      step={1}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Effects */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-purple-300 mb-2">
+                Effects
+              </h3>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={settings.crt}
+                  onCheckedChange={(checked) => setSettings({ crt: checked })}
+                />
+                <Label className="text-gray-200">CRT Effect</Label>
+              </div>
+            </section>
+          </>
+        )}
       </div>
 
       {/* Bottom scroll indicator */}
