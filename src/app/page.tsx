@@ -7,9 +7,9 @@ import { useEffectsPreview } from "@/hooks/use-effects-preview";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
 import {
   AnimatedTitle,
-  PreviewCard,
   Footer,
   FinalPreviewModal,
+  PreviewCard
 } from "@/components/molecules";
 import { ControlPanel } from "@/components/organisms";
 
@@ -99,8 +99,6 @@ export default function Home() {
           />
           <div className="w-full lg:w-[380px]">
             <ControlPanel
-              settings={settings}
-              onSettingsChange={setSettings}
               onFileChange={handleFileChange}
               isLoading={effectsLoading && !isDragging}
               onDragStateChange={handleDragStateChange}
