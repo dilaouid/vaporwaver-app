@@ -8,7 +8,7 @@ interface FinalPreviewModalProps {
   onClose: () => void;
 }
 
-const FinalPreviewModal: React.FC<FinalPreviewModalProps> = ({ imageUrl, onClose }) => {
+export const FinalPreviewModal: React.FC<FinalPreviewModalProps> = ({ imageUrl, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
       <div className="relative bg-gray-900 p-4 rounded-md">
@@ -30,5 +30,3 @@ const FinalPreviewModal: React.FC<FinalPreviewModalProps> = ({ imageUrl, onClose
     </div>
   );
 };
-
-export default FinalPreviewModal;

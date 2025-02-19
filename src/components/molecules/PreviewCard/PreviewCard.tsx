@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { VaporwaverSettings } from "@/app/types/vaporwaver";
-import FinalPreviewModal from "@/components/molecules/FinalPreviewModal/FinalPreviewModal";
+import { FinalPreviewModal } from "@/components/molecules/FinalPreviewModal";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
 import { blobToBase64 } from "@/lib/base64";
 

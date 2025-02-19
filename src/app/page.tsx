@@ -1,13 +1,12 @@
 "use client";
+
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { VaporwaverSettings } from "@/app/types/vaporwaver";
-import { Github } from "lucide-react";
+
 import { useEffectsPreview } from "@/hooks/use-effects-preview";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
-import FinalPreviewModal from "@/components/molecules/FinalPreviewModal/FinalPreviewModal";
-import { AnimatedTitle } from "@/components/molecules/AnimatedTitle/AnimateTitle";
-import { PreviewCard } from "@/components/molecules/PreviewCard/PreviewCard";
-import { ControlPanel } from "@/components/organisms/ControlPanel/ControlPanel";
+import { AnimatedTitle, PreviewCard, Footer, FinalPreviewModal } from "@/components/molecules";
+import { ControlPanel } from "@/components/organisms";
 
 const initialSettings: VaporwaverSettings = {
   characterPath: "",
@@ -28,18 +27,25 @@ const initialSettings: VaporwaverSettings = {
 };
 
 export default function Home() {
+  // États principaux
   const [settings, setSettings] = useState<VaporwaverSettings>(initialSettings);
   const [characterUrl, setCharacterUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
-  const { storeCharacter } = useCharacterStorage();
 
+  // Hooks personnalisés
+  const { storeCharacter } = useCharacterStorage();
   const { isLoading: effectsLoading, previewImage } = useEffectsPreview(settings, isDragging);
 
+  // URL dérivées pour le background et le misc
   const backgroundUrl = useMemo(() => `/backgrounds/${settings.background}.png`, [settings.background]);
-  const miscUrl = useMemo(() => (settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined), [settings.misc]);
+  const miscUrl = useMemo(
+    () => (settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined),
+    [settings.misc]
+  );
 
+  // Handler pour mettre à jour les settings
   const handleSettingsChange = useCallback((newSettings: Partial<VaporwaverSettings>) => {
     setSettings((prev) => {
       const hasChanges = Object.entries(newSettings).some(
@@ -49,25 +55,31 @@ export default function Home() {
     });
   }, []);
 
+  // Handler pour le drag
   const handleDragStateChange = useCallback((dragging: boolean) => {
     setIsDragging(dragging);
   }, []);
 
-  const handleFileChange = useCallback(async (file: File) => {
-    if (characterUrl) {
-      URL.revokeObjectURL(characterUrl);
-    }
-    await storeCharacter(file);
-    const url = URL.createObjectURL(file);
-    setCharacterUrl(url);
-    handleSettingsChange({ characterPath: file });
-  }, [characterUrl, storeCharacter, handleSettingsChange]);
+  // Handler pour le changement de fichier
+  const handleFileChange = useCallback(
+    async (file: File) => {
+      if (characterUrl) {
+        URL.revokeObjectURL(characterUrl);
+      }
+      await storeCharacter(file);
+      const url = URL.createObjectURL(file);
+      setCharacterUrl(url);
+      handleSettingsChange({ characterPath: file });
+    },
+    [characterUrl, storeCharacter, handleSettingsChange]
+  );
 
-  // Clear localStorage au chargement
+  // Nettoyage du localStorage lors du montage
   useEffect(() => {
     localStorage.clear();
   }, []);
 
+  // Nettoyage de l'URL d'objet au démontage
   useEffect(() => {
     return () => {
       if (characterUrl) {
@@ -76,20 +88,26 @@ export default function Home() {
     };
   }, [characterUrl]);
 
+  // Rendu de la modal finale
+  const renderModal = () => {
+    if (!modalOpen || !modalImageUrl) return null;
+    return (
+      <FinalPreviewModal
+        imageUrl={modalImageUrl}
+        onClose={() => {
+          setModalOpen(false);
+          URL.revokeObjectURL(modalImageUrl);
+          setModalImageUrl(null);
+        }}
+      />
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-indigo-900">
       <main className="container mx-auto px-4 py-8">
         <AnimatedTitle />
-        {modalOpen && modalImageUrl && (
-          <FinalPreviewModal
-            imageUrl={modalImageUrl}
-            onClose={() => {
-              setModalOpen(false);
-              URL.revokeObjectURL(modalImageUrl);
-              setModalImageUrl(null);
-            }}
-          />
-        )}
+        {renderModal()}
         <div className="flex flex-col lg:flex-row justify-center gap-4 mt-8">
           <PreviewCard
             backgroundUrl={backgroundUrl}
@@ -110,20 +128,7 @@ export default function Home() {
             />
           </div>
         </div>
-        <footer className="text-center mt-8">
-          <a
-            href="https://github.com/dilaouid/vaporwaver"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-purple-400 transition-colors"
-          >
-            <Github className="w-4 h-4" />
-            Source Code
-          </a>
-          <p className="text-gray-400 text-sm mt-2">
-            Created by dilaouid • Powered by vaporwaver-ts
-          </p>
-        </footer>
+        <Footer />
       </main>
     </div>
   );
