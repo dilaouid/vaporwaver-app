@@ -20,11 +20,6 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
   // Remember last base64 used for preview
   const appliedBase64Ref = useRef<string | null>(null);
 
-  const needsApiPreview =
-    settings.characterGlitch !== 0.1 ||
-    settings.characterGlitchSeed !== 0 ||
-    settings.characterGradient !== 'none';
-
   // Process API result with proper image loading
   const processApiResult = useCallback((blob: Blob) => {
     const url = URL.createObjectURL(blob);
@@ -129,6 +124,42 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
       debounceTimerRef.current = null;
     }, 300);
   }, [settings, getStoredCharacter, fetchEffectsPreview]);
+
+  
+
+  const needsApiPreview = useCallback(() => {
+    const hasEffectsToApply = 
+      settings.characterGlitch !== 0.1 ||
+      settings.characterGlitchSeed !== 0 ||
+      settings.characterGradient !== 'none';
+
+    const hasEffectsToRemove = 
+      (settings.characterGlitch === 0.1 && appliedEffectsRef.current.characterGlitch !== 0.1) ||
+      (settings.characterGlitchSeed === 0 && appliedEffectsRef.current.characterGlitchSeed !== 0) ||
+      (settings.characterGradient === 'none' && appliedEffectsRef.current.characterGradient !== 'none');
+
+    return hasEffectsToApply || hasEffectsToRemove;
+  }, [settings]);
+
+  // Effect to handle changes and trigger updates
+  useEffect(() => {
+    if (isDragging || !needsApiPreview()) return;
+    debouncedUpdateEffect();
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, [
+    isDragging,
+    needsApiPreview,
+    settings.characterGlitch,
+    settings.characterGlitchSeed,
+    settings.characterGradient,
+    debouncedUpdateEffect
+  ]);
 
   // Effect to handle changes and trigger updates
   useEffect(() => {
