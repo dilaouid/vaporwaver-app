@@ -224,13 +224,13 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
       <div
         id="preview-container"
         ref={containerRef}
-        className="flex flex-col items-center w-full max-w-[460px] select-none pointer-events-none"
+        className="flex flex-col items-center w-full max-w-[460px] select-none"
       >
         <div className="preview-card-container relative w-full">
           {/* Preview Card with Pulse Effect */}
           <div className="preview-card-pulse absolute -inset-1 rounded-2xl animate-pulse-slow"></div>
 
-          <div className="preview-card relative h-[595px] w-full rounded-2xl overflow-hidden bg-black/60 shadow-2xl border border-purple-500/30 backdrop-blur-sm z-10">
+          <div className="preview-card relative h-[595px] w-full rounded-2xl overflow-hidden bg-black/60 shadow-2xl border border-purple-500/30 backdrop-blur-sm z-10 pointer-events-none">
             {/* Background Layer */}
             <CanvasLayer
               src={backgroundUrl}
