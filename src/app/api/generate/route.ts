@@ -52,31 +52,64 @@ export async function POST(request: NextRequest) {
         if (!existsSync(characterPath)) {
             throw new Error("Failed to write character file");
         }
+        
+        // Parse values safely
         const crtValue = formData.get("crt")?.toString().toLowerCase() === "true";
-
+        const miscValue = formData.get("misc")?.toString() || "none";
+        const backgroundValue = formData.get("background")?.toString() || "default";
+        
+        // Parse numeric values with default fallbacks
+        const parseNumber = (value: FormDataEntryValue | null, defaultVal: number): number => {
+            if (!value) return defaultVal;
+            const parsed = Number(value);
+            return isNaN(parsed) ? defaultVal : parsed;
+        };
+        
         const config: IFlag = {
             characterPath,
-            characterXPos: Number(formData.get("characterXPos") || 0),
-            characterYPos: Number(formData.get("characterYPos") || 0),
-            characterScale: Number(formData.get("characterScale") || 100),
-            characterRotate: Number(formData.get("characterRotate") || 0),
-            // Forcer : aucun effet de gradient, glitch ou seed
+            characterXPos: parseNumber(formData.get("characterXPos"), 0),
+            characterYPos: parseNumber(formData.get("characterYPos"), 0),
+            characterScale: parseNumber(formData.get("characterScale"), 100),
+            characterRotate: parseNumber(formData.get("characterRotate"), 0),
             characterGlitch: 0.1,
             characterGlitchSeed: 0,
             characterGradient: "none",
             outputPath,
-            // Options pour background et misc (si nécessaire)
-            background: formData.get("background")?.toString() || "default",
-            misc: formData.get("misc")?.toString() || "none",
-            miscPosX: Number(formData.get("miscPosX") || 0),
-            miscPosY: Number(formData.get("miscPosY") || 0),
-            miscScale: Number(formData.get("miscScale") || 100),
-            miscRotate: Number(formData.get("miscRotate") || 0),
+            background: backgroundValue,
+            misc: miscValue,
+            miscPosX: parseNumber(formData.get("miscPosX"), 0),
+            miscPosY: parseNumber(formData.get("miscPosY"), 0),
+            miscScale: parseNumber(formData.get("miscScale"), 100),
+            miscRotate: parseNumber(formData.get("miscRotate"), 0),
             ...(crtValue ? { crt: true } : {}),
             characterOnly: false,
         };
 
-        await vaporwaver(config);
+        try {
+            await vaporwaver(config);
+        } catch (error) {
+            console.error("Full composition failed, trying with default background", error);
+            
+            // Try with default background
+            try {
+                await vaporwaver({
+                    ...config,
+                    background: "default"
+                });
+            } catch (secondError) {
+                console.error("Default background failed too, falling back to character-only", secondError);
+                
+                // Fall back to character-only as last resort
+                await vaporwaver({
+                    characterPath,
+                    outputPath,
+                    characterGlitch: 0.1,
+                    characterGlitchSeed: 0,
+                    characterGradient: "none",
+                    characterOnly: true
+                });
+            }
+        }
 
         if (!existsSync(outputPath)) {
             throw new Error("Output file was not generated");

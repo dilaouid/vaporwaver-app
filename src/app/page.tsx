@@ -1,25 +1,20 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-
+import React, { useCallback, useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useEffectsPreview } from "@/hooks/use-effects-preview";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
-import {
-  AnimatedTitle,
-  Footer,
-  FinalPreviewModal,
-  PreviewCard
-} from "@/components/molecules";
-import { ControlPanel } from "@/components/organisms";
+import { AnimatedBackground } from "@/components/atoms";
+import { Footer } from "@/components/molecules";
+import { MainPreview, EnvironmentControls, CharacterControls } from "@/components/organisms";
 
 export default function Home() {
-  // États principaux
+  // Main states
   const [isDragging, setIsDragging] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
 
-  // Hooks personnalisés
+  // Custom hooks
   const { settings, characterUrl, setSettings, setCharacterUrl } = useStore();
   const { storeCharacter } = useCharacterStorage();
   const { isLoading: effectsLoading, previewImage } = useEffectsPreview(
@@ -27,23 +22,16 @@ export default function Home() {
     isDragging
   );
 
-  // URL dérivées pour le background et le misc
-  const backgroundUrl = useMemo(
-    () => `/backgrounds/${settings.background}.png`,
-    [settings.background]
-  );
-  const miscUrl = useMemo(
-    () =>
-      settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined,
-    [settings.misc]
-  );
+  // Derived URLs for background and misc
+  const backgroundUrl = `/backgrounds/${settings.background}.png`;
+  const miscUrl = settings.misc !== "none" ? `/miscs/${settings.misc}.png` : undefined;
 
-  // Handler pour le drag
+  // Drag state handler
   const handleDragStateChange = useCallback((dragging: boolean) => {
     setIsDragging(dragging);
   }, []);
 
-  // Handler pour le changement de fichier
+  // File change handler
   const handleFileChange = useCallback(
     async (file: File) => {
       if (characterUrl) {
@@ -57,12 +45,12 @@ export default function Home() {
     [characterUrl, storeCharacter, setSettings, setCharacterUrl]
   );
 
-  // Nettoyage du localStorage lors du montage
+  // Clean localStorage on mount
   useEffect(() => {
     localStorage.clear();
   }, []);
 
-  // Nettoyage de l'URL d'objet au démontage
+  // Clean up object URL on unmount
   useEffect(() => {
     return () => {
       if (characterUrl) {
@@ -71,42 +59,74 @@ export default function Home() {
     };
   }, [characterUrl]);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-indigo-900">
-      <main className="container mx-auto px-4 py-8">
-        <AnimatedTitle />
+  const handleCloseModal = useCallback(() => {
+    setModalOpen(false);
+    if (modalImageUrl) {
+      URL.revokeObjectURL(modalImageUrl);
+      setModalImageUrl(null);
+    }
+  }, [modalImageUrl]);
 
-        { modalOpen && modalImageUrl && (
-          <FinalPreviewModal
-            imageUrl={modalImageUrl}
-            onClose={() => {
-              setModalOpen(false);
-              URL.revokeObjectURL(modalImageUrl);
-              setModalImageUrl(null);
-            }}
-          />
-        ) }
-  
-        <div className="flex flex-col lg:flex-row justify-center gap-4 mt-8">
-          <PreviewCard
-            backgroundUrl={backgroundUrl}
-            characterUrl={characterUrl}
-            miscUrl={miscUrl}
-            settings={settings}
-            crt={settings.crt}
-            effectPreviewUrl={previewImage}
-            isEffectLoading={effectsLoading && !isDragging}
-          />
-          <div className="w-full lg:w-[380px]">
-            <ControlPanel
+  return (
+    <div className="min-h-screen bg-gray-950 overflow-hidden relative">
+      <AnimatedBackground />
+      
+      <main className="container mx-auto px-4 py-8 relative z-10">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 animate-gradient-x">
+            VAPORWAVER
+          </h1>
+          <div className="flex flex-col items-center">
+            <p className="text-cyan-200 text-base sm:text-lg">Transform your images into vaporwave aesthetics</p>
+            <div className="w-24 h-1 bg-gradient-to-r from-cyan-500 to-purple-500 my-2 rounded-full"></div>
+            <p className="text-purple-300 text-xs sm:text-sm">A modern web interface for the vaporwaver-ts library</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[350px_auto_350px] gap-3 mt-8 max-w-[1280px] mx-auto">
+          {/* Left column - Environment controls */}
+          <div className="order-2 xl:order-1">
+            <EnvironmentControls 
+              settings={settings}
+              setSettings={setSettings}
+              isLoading={effectsLoading && !isDragging}
+              onDragStateChange={handleDragStateChange}
+            />
+          </div>
+
+          {/* Center column - Main preview */}
+          <div className="order-1 xl:order-2 flex justify-center">
+            <MainPreview
+              backgroundUrl={backgroundUrl}
+              characterUrl={characterUrl}
+              miscUrl={miscUrl}
+              settings={settings}
+              crt={settings.crt}
+              effectPreviewUrl={previewImage}
+              isEffectLoading={effectsLoading && !isDragging}
+              isModalOpen={modalOpen}
+              modalImageUrl={modalImageUrl}
+              onCloseModal={handleCloseModal}
+              setModalOpen={setModalOpen}
+              setModalImageUrl={setModalImageUrl}
+            />
+          </div>
+
+          {/* Right column - Character controls */}
+          <div className="order-3">
+            <CharacterControls
+              settings={settings}
               onFileChange={handleFileChange}
               isLoading={effectsLoading && !isDragging}
               onDragStateChange={handleDragStateChange}
             />
           </div>
         </div>
+
         <Footer />
+
       </main>
     </div>
   );
 }
+

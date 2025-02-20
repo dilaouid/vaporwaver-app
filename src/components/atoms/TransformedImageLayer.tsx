@@ -50,7 +50,7 @@ export const TransformedImageLayer: React.FC<TransformedImageLayerProps> = ({
 }) => {
   return (
     <div
-      className="absolute"
+      className="absolute select-none"
       style={{
         left,
         top,

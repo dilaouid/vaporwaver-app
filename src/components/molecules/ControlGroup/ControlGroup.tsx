@@ -16,6 +16,8 @@ interface ControlGroupProps {
   onDragStateChange?: (dragging: boolean) => void;
   onDragEnd?: () => void;
   isEffectControl?: boolean;
+  colorScheme?: "purple" | "cyan";
+  disabled?: boolean;
 }
 
 export const ControlGroup: React.FC<ControlGroupProps> = ({
@@ -29,7 +31,9 @@ export const ControlGroup: React.FC<ControlGroupProps> = ({
   className,
   onDragStateChange,
   onDragEnd,
-  isEffectControl = false
+  isEffectControl = false,
+  colorScheme = "purple",
+  disabled = false
 }) => {
   const handleValueChange = React.useCallback(
     (newValue: number[]) => {
@@ -40,45 +44,88 @@ export const ControlGroup: React.FC<ControlGroupProps> = ({
 
   const { isDragging, dragHandlers } = useDragging({
     onDragStateChange: (isDragging) => {
-      onDragStateChange?.(isDragging);
+      // Only notify about drag state changes if this isn't an effect control
+      // For effect controls, we'll wait for onDragEnd to trigger API calls
+      if (!isEffectControl) {
+        onDragStateChange?.(isDragging);
+      }
     },
-    // Only use onDragEnd if we're handling an effect control
-    onDragEnd: isEffectControl ? onDragEnd : undefined,
-    // Use shorter debounce for effect controls
-    debounceTime: isEffectControl ? 150 : 300
+    // Always use onDragEnd for effect controls to wait until user finishes dragging
+    onDragEnd: isEffectControl ? () => {
+      // For effect controls, we only trigger updates after dragging ends
+      if (onDragEnd) onDragEnd();
+      if (onDragStateChange) onDragStateChange(false);
+    } : undefined,
+    // No need for short debounce on effect controls since we only update on end
+    debounceTime: 300
   });
 
+  const getTextColor = () => {
+    if (colorScheme === "purple") {
+      return isDragging ? "text-purple-300" : "text-purple-100";
+    } else {
+      return isDragging ? "text-cyan-300" : "text-cyan-100";
+    }
+  };
+
+  const getValueColor = () => {
+    if (colorScheme === "purple") {
+      return isDragging ? "text-pink-300" : "text-gray-400";
+    } else {
+      return isDragging ? "text-cyan-300" : "text-gray-400";
+    }
+  };
+
+  const getSliderClass = () => {
+    return colorScheme === "purple" 
+      ? "control-group-purple" 
+      : "control-group-cyan";
+  };
+
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn(
+      "space-y-2", 
+      className, 
+      disabled && "opacity-50 cursor-not-allowed"
+    )}>
       <div className="flex justify-between items-center">
-        <Label className="text-gray-200">
+        <Label className={`${getTextColor()} ${disabled && "text-opacity-50"}`}>
           {label}
           {isEffectControl && (
-            <span className="ml-1 text-purple-400 text-xs">*</span>
+            <span className={`ml-1 ${colorScheme === "purple" ? "text-purple-400" : "text-cyan-400"} text-xs ${disabled && "text-opacity-50"}`}>*</span>
           )}
         </Label>
         <span className={cn(
-          "text-sm transition-opacity duration-200",
-          isDragging 
-            ? "text-purple-300 font-medium" 
-            : "text-gray-400"
+          "text-sm font-medium transition-all duration-300 flex items-center",
+          getValueColor(),
+          disabled && "text-opacity-50"
         )}>
-          {value}
-          {unit}
+          <span className={isDragging && !disabled ? "scale-110 transition-transform" : ""}>
+            {value}{unit}
+          </span>
         </span>
       </div>
-      <Slider
-        {...dragHandlers}
-        value={[value]}
-        min={min}
-        max={max}
-        step={step}
-        onValueChange={handleValueChange}
-        className={cn(
-          "py-4", 
-          isEffectControl && "accent-purple-500"
+      <div className={`relative ${getSliderClass()} ${disabled && "opacity-50"}`}>
+        {isDragging && !disabled && (
+          <div className={`absolute inset-0 -m-2 rounded-full blur-md opacity-20 
+                        ${colorScheme === "purple" ? "bg-purple-400" : "bg-cyan-400"}`}></div>
         )}
-      />
+        <Slider
+          {...(!disabled && dragHandlers)}
+          value={[value]}
+          min={min}
+          max={max}
+          step={step}
+          onValueChange={!disabled ? handleValueChange : undefined}
+          className={cn(
+            "py-4 relative z-10", 
+            isEffectControl && colorScheme === "purple" ? "accent-purple-500" : "",
+            isEffectControl && colorScheme === "cyan" ? "accent-cyan-500" : "",
+            disabled && "cursor-not-allowed"
+          )}
+          disabled={disabled}
+        />
+      </div>
     </div>
   );
 };

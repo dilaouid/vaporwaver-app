@@ -1,5 +1,5 @@
 export * from "./CanvasLayer"
 export * from "./GithubIcon"
 export * from "./GradientSwatch"
-export * from "./LoadingOverlay"
 export * from "./TransformedImageLayer"
+export * from "./AnimatedBackground"
