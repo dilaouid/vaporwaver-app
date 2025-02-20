@@ -1,4 +1,3 @@
-Dockerfile
 FROM node:20-slim AS base
 
 # Install Python and pip
