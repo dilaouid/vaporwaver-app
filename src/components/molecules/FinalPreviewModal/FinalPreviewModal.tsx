@@ -1,6 +1,6 @@
 "use client";
-import React, { useEffect, useRef } from "react";
-import { X, Download, Share2 } from "lucide-react";
+import React, { useEffect } from "react";
+import { X, Download } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
@@ -13,27 +13,13 @@ export const FinalPreviewModal: React.FC<FinalPreviewModalProps> = ({
   imageUrl, 
   onClose 
 }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
-
   // Handle ESC key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    
-    const handleClickOutside = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('mousedown', handleClickOutside);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
   const handleDownload = () => {
@@ -45,34 +31,9 @@ export const FinalPreviewModal: React.FC<FinalPreviewModalProps> = ({
     document.body.removeChild(link);
   };
 
-  const handleShare = async () => {
-    try {
-      // Convert image URL to blob for sharing
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const file = new File([blob], 'vaporwave-creation.png', { type: 'image/png' });
-      
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: 'My Vaporwave Creation',
-          files: [file],
-        });
-      } else {
-        // Fallback to copy to clipboard
-        handleDownload();
-        alert('Sharing not supported in this browser. Image downloaded instead.');
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div 
-        ref={modalRef}
-        className="relative max-w-[90vw] max-h-[90vh] bg-gradient-to-b from-gray-900 to-black p-1 rounded-xl overflow-hidden"
-      >
+      <div onClick={(e) => e.stopPropagation()} className="relative max-w-[90vw] max-h-[90vh] bg-gradient-to-b from-gray-900 to-black p-1 rounded-xl overflow-hidden">
         {/* Glow effect around modal */}
         <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 rounded-xl blur-sm opacity-50"></div>
         
@@ -101,22 +62,15 @@ export const FinalPreviewModal: React.FC<FinalPreviewModalProps> = ({
           </div>
           
           {/* Action buttons */}
-          <div className="p-4 bg-black flex justify-center gap-4">
+          <div className="p-6 bg-black flex justify-center gap-2">
             <Button 
               onClick={handleDownload}
-              className="bg-gradient-to-r from-cyan-600 to-cyan-800 hover:from-cyan-500 hover:to-cyan-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 group"
+              className="bg-gradient-to-r from-cyan-600 to-cyan-800 hover:from-cyan-500 hover:to-cyan-700 text-white px-20 py-2 flex items-center gap-2 group rounded"
             >
               <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
               <span>Download</span>
             </Button>
             
-            <Button 
-              onClick={handleShare}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-6 py-2 rounded-lg flex items-center gap-2 group"
-            >
-              <Share2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>Share</span>
-            </Button>
           </div>
         </div>
       </div>
