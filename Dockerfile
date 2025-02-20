@@ -1,13 +1,19 @@
 FROM node:20-slim AS base
 
-# Install Python and pip
+# Install Python and required packages
 RUN apt-get update && apt-get install -y \
-    python3 \
+    python3-full \
     python3-pip \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# Install required Python packages
-RUN pip3 install pillow opencv-python glitch-this
+# Create and activate virtual environment
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install required Python packages in the virtual environment
+RUN pip3 install --no-cache-dir pillow opencv-python glitch-this
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -25,7 +31,6 @@ COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
@@ -50,6 +55,10 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy Python virtual environment
+COPY --from=base /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy Python scripts and dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/vaporwaver.py ./
