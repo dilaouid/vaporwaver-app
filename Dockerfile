@@ -28,7 +28,6 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
-# création de l'image de production
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
@@ -59,15 +58,12 @@ COPY --from=builder /app/node_modules/vaporwaver-ts/picts/backgrounds/* ./picts/
 COPY --from=builder /app/node_modules/vaporwaver-ts/picts/miscs/* ./picts/miscs/
 COPY --from=builder /app/node_modules/vaporwaver-ts/picts/crt/* ./picts/crt/
 
-# S’assurer que toutes les permissions sont correctes
 RUN chown -R nextjs:nodejs .
 
-# Passer à l’utilisateur non-root
 USER nextjs
 
-# Exposer le port défini par Railway (Railway définit la variable d'environnement PORT)
 EXPOSE $PORT
 ENV PORT=$PORT
 
-# Lancer l’application en exécutant le server standalone généré par Next.js
-CMD ["node", "server.js"]
+# Démarrer l'application avec la commande "npm start" qui invoque "next start"
+CMD ["npm", "start"]
