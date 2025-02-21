@@ -19,14 +19,17 @@ RUN pip3 install --no-cache-dir pillow opencv-python glitch-this
 FROM base AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Copy package files
+COPY package.json ./
+
+# Install dependencies - we use npm install instead of npm ci to generate a new lock file
+RUN npm install
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package*.json ./
 COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
