@@ -33,6 +33,7 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV HOST=0.0.0.0
 
 # Créer un utilisateur non-root
 RUN addgroup --system --gid 1001 nodejs && \
