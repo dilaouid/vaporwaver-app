@@ -44,15 +44,14 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Create necessary directories
+RUN mkdir -p .next tmp picts/backgrounds picts/miscs picts/crt
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy public directory which contains the necessary images
 COPY --from=builder /app/public ./public
-
-# Create necessary directories
-RUN mkdir -p .next tmp picts/backgrounds picts/miscs picts/crt \
-    && chown -R nextjs:nodejs .next tmp picts
 
 # Copy the Python files from vaporwaver-ts
 COPY --from=builder /app/node_modules/vaporwaver-ts/vaporwaver.py ./
@@ -73,9 +72,11 @@ RUN chown -R nextjs:nodejs .
 
 USER nextjs
 
-EXPOSE 3000
+# Use PORT environment variable from Railway or default to 8080
+ENV PORT=8080
+ENV HOSTNAME "0.0.0.0"
 
-ENV PORT 3000
-ENV HOSTNAME localhost
+EXPOSE ${PORT}
 
-CMD ["node", "server.js"]
+# Start the server using the port from environment variable
+CMD ["sh", "-c", "NODE_ENV=production node server.js"]
