@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+# Modifier cette
 
 RUN apt-get update && apt-get install -y \
     python3-full \
@@ -62,8 +62,9 @@ RUN chown -R nextjs:nodejs .
 
 USER nextjs
 
-EXPOSE $PORT
-ENV PORT=$PORT
+EXPOSE 8080
+ENV PORT=8080
+ENV HOSTNAME="0.0.0.0"
 
-# Démarrer l'application avec la commande "npm start" qui invoque "next start"
-CMD ["npm", "start"]
+# Démarrer l'application en mode standalone via server.js
+CMD ["node", "server.js"]
