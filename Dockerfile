@@ -22,7 +22,7 @@ WORKDIR /app
 # Copy package files
 COPY package.json ./
 
-# Install dependencies - we use npm install instead of npm ci to generate a new lock file
+# Install dependencies
 RUN npm install
 
 # Rebuild the source code only when needed
@@ -33,7 +33,6 @@ COPY --from=deps /app/package*.json ./
 COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
@@ -48,26 +47,29 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy public directory which contains the necessary images
 COPY --from=builder /app/public ./public
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Create necessary directories
+RUN mkdir -p .next tmp picts/backgrounds picts/miscs picts/crt \
+    && chown -R nextjs:nodejs .next tmp picts
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# Copy the Python files from vaporwaver-ts
+COPY --from=builder /app/node_modules/vaporwaver-ts/vaporwaver.py ./
+COPY --from=builder /app/node_modules/vaporwaver-ts/data.py ./
+COPY --from=builder /app/node_modules/vaporwaver-ts/lib ./lib
+
+# Copy the standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Python virtual environment
-COPY --from=base /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Copy necessary image assets from vaporwaver-ts
+COPY --from=builder /app/node_modules/vaporwaver-ts/picts/backgrounds/* ./picts/backgrounds/
+COPY --from=builder /app/node_modules/vaporwaver-ts/picts/miscs/* ./picts/miscs/
+COPY --from=builder /app/node_modules/vaporwaver-ts/picts/crt/* ./picts/crt/
 
-# Copy Python scripts and dependencies
-COPY --from=builder --chown=nextjs:nodejs /app/vaporwaver.py ./
-COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
-COPY --from=builder --chown=nextjs:nodejs /app/data ./data
-COPY --from=builder --chown=nextjs:nodejs /app/picts ./picts
+# Ensure proper permissions
+RUN chown -R nextjs:nodejs .
 
 USER nextjs
 
