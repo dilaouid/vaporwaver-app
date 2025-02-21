@@ -55,9 +55,9 @@ RUN mkdir -p .next tmp picts/backgrounds picts/miscs picts/crt \
     && chown -R nextjs:nodejs .next tmp picts
 
 # Copy the Python files from vaporwaver-ts
-COPY --from=builder /app/node_modules/vaporwaver-ts/vaporwaver.py ./
-COPY --from=builder /app/node_modules/vaporwaver-ts/data.py ./
-COPY --from=builder /app/node_modules/vaporwaver-ts/lib ./lib
+# COPY --from=builder /app/node_modules/vaporwaver-ts/vaporwaver.py ./
+# COPY --from=builder /app/node_modules/vaporwaver-ts/data.py ./
+# COPY --from=builder /app/node_modules/vaporwaver-ts/lib ./lib
 
 # Copy the standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
