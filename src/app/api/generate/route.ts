@@ -52,19 +52,19 @@ export async function POST(request: NextRequest) {
         if (!existsSync(characterPath)) {
             throw new Error("Failed to write character file");
         }
-        
+
         // Parse values safely
         const crtValue = formData.get("crt")?.toString().toLowerCase() === "true";
         const miscValue = formData.get("misc")?.toString() || "none";
         const backgroundValue = formData.get("background")?.toString() || "default";
-        
+
         // Parse numeric values with default fallbacks
         const parseNumber = (value: FormDataEntryValue | null, defaultVal: number): number => {
             if (!value) return defaultVal;
             const parsed = Number(value);
             return isNaN(parsed) ? defaultVal : parsed;
         };
-        
+
         const config: IFlag = {
             characterPath,
             characterXPos: parseNumber(formData.get("characterXPos"), 0),
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
             await vaporwaver(config);
         } catch (error) {
             console.error("Full composition failed, trying with default background", error);
-            
+
             // Try with default background
             try {
                 await vaporwaver({
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
                 });
             } catch (secondError) {
                 console.error("Default background failed too, falling back to character-only", secondError);
-                
+
                 // Fall back to character-only as last resort
                 await vaporwaver({
                     characterPath,
