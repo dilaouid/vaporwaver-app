@@ -20,16 +20,13 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
-
-# Install dependencies
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package*.json ./
 COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
@@ -44,39 +41,38 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Create necessary directories
-RUN mkdir -p .next tmp picts/backgrounds picts/miscs picts/crt
-
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy public directory which contains the necessary images
-COPY --from=builder /app/public ./public
+# Create tmp directory with correct permissions
+RUN mkdir -p /app/tmp && chown nextjs:nodejs /app/tmp && chmod 755 /app/tmp
 
-# Copy the Python files from vaporwaver-ts
-COPY --from=builder /app/node_modules/vaporwaver-ts/vaporwaver.py ./
-COPY --from=builder /app/node_modules/vaporwaver-ts/data.py ./
-COPY --from=builder /app/node_modules/vaporwaver-ts/lib ./lib
-
-# Copy the standalone output
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# Copy public and static files
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy necessary image assets from vaporwaver-ts
-COPY --from=builder /app/node_modules/vaporwaver-ts/picts/backgrounds/* ./picts/backgrounds/
-COPY --from=builder /app/node_modules/vaporwaver-ts/picts/miscs/* ./picts/miscs/
-COPY --from=builder /app/node_modules/vaporwaver-ts/picts/crt/* ./picts/crt/
+# Copy the Python files and resources from vaporwaver-ts
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/vaporwaver-ts/vaporwaver.py ./
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/vaporwaver-ts/data.py ./
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/vaporwaver-ts/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/vaporwaver-ts/picts ./picts
 
-# Ensure proper permissions
-RUN chown -R nextjs:nodejs .
+# Copy the standalone Next.js output
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Create symlink for node_modules to ensure vaporwaver-ts can be found
+RUN mkdir -p node_modules && \
+    ln -s /app/node_modules/vaporwaver-ts node_modules/vaporwaver-ts
+
+# Ensure Python can write to tmp
+RUN chmod 777 /app/tmp
 
 USER nextjs
 
-# Use PORT environment variable from Railway or default to 8080
+# Use PORT from Railway
 ENV PORT=8080
-ENV HOSTNAME "0.0.0.0"
+ENV HOSTNAME="0.0.0.0"
 
 EXPOSE ${PORT}
 
-# Start the server using the port from environment variable
-CMD ["sh", "-c", "NODE_ENV=production node server.js"]
+CMD ["node", "server.js"]
