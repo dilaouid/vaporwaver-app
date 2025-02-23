@@ -1,187 +1,157 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { VaporwaverSettings } from '@/app/types/vaporwaver';
 import { useCharacterStorage } from './use-character-storage';
+import { VAPORWAVER_ERRORS } from '@/lib/errors';
+import { useStore } from '@/store/useStore';
+import { toast } from 'sonner';
 
 export function useEffectsPreview(settings: VaporwaverSettings, isDragging: boolean = false) {
   const [isLoading, setIsLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const { getStoredCharacter } = useCharacterStorage();
+  const { rollbackSettings, isRollbackInProgress, resetCharacter } = useStore();
   const abortControllerRef = useRef<AbortController | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isUpdatingRef = useRef(false);
+  const lastSuccessfulSettingsRef = useRef<VaporwaverSettings>(settings);
+  const lastRequestTimeRef = useRef<number>(0);
+  const [hasFetchedPreview, setHasFetchedPreview] = useState(false);
 
-  // Remember last applied effects
-  const appliedEffectsRef = useRef({
-    characterGlitch: settings.characterGlitch,
-    characterGlitchSeed: settings.characterGlitchSeed,
-    characterGradient: settings.characterGradient,
-  });
+  const handleError = useCallback((error: unknown) => {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    let toastMessage = "An unexpected error occurred";
+    let description = "";
 
-  // Remember last base64 used for preview
-  const appliedBase64Ref = useRef<string | null>(null);
+    if (errorMessage.includes("Invalid PNG")) {
+      toastMessage = "Invalid Image Format";
+      description = VAPORWAVER_ERRORS.INVALID_IMAGE;
+      resetCharacter(); // Reset character on invalid image
+    } else if (errorMessage.includes("Rate limit")) {
+      toastMessage = "Too Many Requests";
+      description = VAPORWAVER_ERRORS.RATE_LIMIT;
+    } else if (errorMessage.includes("too large")) {
+      toastMessage = "File Too Large";
+      description = VAPORWAVER_ERRORS.FILE_TOO_LARGE;
+      resetCharacter();
+    }
 
-  // Process API result with proper image loading
+    toast.error(toastMessage, {
+      description,
+      style: {
+        background: 'rgba(0, 0, 0, 0.8)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        color: '#fff'
+      }
+    });
+
+    rollbackSettings(lastSuccessfulSettingsRef.current);
+    setIsLoading(false);
+    if (previewImage) {
+      URL.revokeObjectURL(previewImage);
+      setPreviewImage(null);
+    }
+    // Bloquer de nouvelles requêtes tant que les paramètres n'ont pas changé
+    setHasFetchedPreview(true);
+  }, [rollbackSettings, resetCharacter, previewImage]);
+
   const processApiResult = useCallback((blob: Blob) => {
     const url = URL.createObjectURL(blob);
     setPreviewImage(prevUrl => {
       if (prevUrl) URL.revokeObjectURL(prevUrl);
       return url;
     });
-    
-    // Update the applied effects reference
-    appliedEffectsRef.current = {
-      characterGlitch: settings.characterGlitch,
-      characterGlitchSeed: settings.characterGlitchSeed,
-      characterGradient: settings.characterGradient,
-    };
-    
-    // Update applied base64
-    appliedBase64Ref.current = getStoredCharacter();
-    
-    // Immediately turn off loading when image is set
+    lastSuccessfulSettingsRef.current = settings;
     setIsLoading(false);
-    isUpdatingRef.current = false;
-  }, [settings, getStoredCharacter]);
+    setHasFetchedPreview(true);
+  }, [settings]);
 
-  // Actual API request function
   const fetchEffectsPreview = useCallback(async () => {
-    if (isUpdatingRef.current) return;
-    isUpdatingRef.current = true;
-    
-    // Abort any in-flight requests
+    // Ne lancez pas de requête si on a déjà obtenu un résultat pour ces paramètres
+    if (hasFetchedPreview) return;
+
+    const now = Date.now();
+    if (now - lastRequestTimeRef.current < 300) {
+      return;
+    }
+    lastRequestTimeRef.current = now;
+
+    if (isRollbackInProgress) return;
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     setIsLoading(true);
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    
+
     const characterBase64 = getStoredCharacter();
     if (!characterBase64) {
       setIsLoading(false);
-      isUpdatingRef.current = false;
       return;
     }
-    
+
     try {
       const formData = new FormData();
       formData.append('characterGlitch', String(settings.characterGlitch));
       formData.append('characterGlitchSeed', String(settings.characterGlitchSeed));
       formData.append('characterGradient', settings.characterGradient);
       formData.append('characterPathBase64', characterBase64);
-      
+
       const response = await fetch('/api/preview-effects', {
         method: 'POST',
         body: formData,
         signal: controller.signal
       });
-      
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error);
       }
-      
+
       const blob = await response.blob();
       processApiResult(blob);
-      
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        // Ignore aborted requests
         return;
       }
-      
-      console.error('Failed to fetch effect preview:', error);
-      setIsLoading(false);
-      isUpdatingRef.current = false;
+      handleError(error);
     }
-  }, [settings, getStoredCharacter, processApiResult]);
+  }, [settings, getStoredCharacter, processApiResult, handleError, isRollbackInProgress, hasFetchedPreview]);
 
-  // Debounced effect updater
-  const debouncedUpdateEffect = useCallback(() => {
-    // Clear any existing timers
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+  useEffect(() => {
+    setHasFetchedPreview(false);
+  }, [
+    settings.characterGlitch,
+    settings.characterGlitchSeed,
+    settings.characterGradient,
+    settings.characterPath
+  ]);
+
+  useEffect(() => {
+    if (isDragging || isRollbackInProgress || !settings.characterPath || !needsApiPreview()) {
+      return;
     }
-    
-    // Don't trigger updates if already updating
-    if (isUpdatingRef.current) return;
-    
-    // Set a new debounce timer
-    debounceTimerRef.current = setTimeout(() => {
-      const currentBase64 = getStoredCharacter();
-      
-      // Skip if nothing changed
-      if (
-        settings.characterGlitch === appliedEffectsRef.current.characterGlitch &&
-        settings.characterGlitchSeed === appliedEffectsRef.current.characterGlitchSeed &&
-        settings.characterGradient === appliedEffectsRef.current.characterGradient &&
-        currentBase64 === appliedBase64Ref.current
-      ) {
-        return;
-      }
-      
+    const timeoutId = setTimeout(() => {
       fetchEffectsPreview();
-      debounceTimerRef.current = null;
     }, 300);
-  }, [settings, getStoredCharacter, fetchEffectsPreview]);
 
-  
-
-  const needsApiPreview = useCallback(() => {
-    const hasEffectsToApply = 
-      settings.characterGlitch !== 0.1 ||
-      settings.characterGlitchSeed !== 0 ||
-      settings.characterGradient !== 'none';
-
-    const hasEffectsToRemove = 
-      (settings.characterGlitch === 0.1 && appliedEffectsRef.current.characterGlitch !== 0.1) ||
-      (settings.characterGlitchSeed === 0 && appliedEffectsRef.current.characterGlitchSeed !== 0) ||
-      (settings.characterGradient === 'none' && appliedEffectsRef.current.characterGradient !== 'none');
-
-    return hasEffectsToApply || hasEffectsToRemove;
-  }, [settings]);
-
-  // Effect to handle changes and trigger updates
-  useEffect(() => {
-    if (isDragging || !needsApiPreview()) return;
-    debouncedUpdateEffect();
-    
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
+      clearTimeout(timeoutId);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [
     isDragging,
-    needsApiPreview,
+    isRollbackInProgress,
     settings.characterGlitch,
     settings.characterGlitchSeed,
     settings.characterGradient,
-    debouncedUpdateEffect
+    settings.characterPath,
+    fetchEffectsPreview
   ]);
 
-  // Effect to handle changes and trigger updates
-  useEffect(() => {
-    if (isDragging || !needsApiPreview) return;
-    debouncedUpdateEffect();
-    
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-    };
-  }, [
-    isDragging,
-    needsApiPreview,
-    settings.characterGlitch,
-    settings.characterGlitchSeed,
-    settings.characterGradient,
-    debouncedUpdateEffect
-  ]);
-
-  // Clean up resources on unmount
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (previewImage) {
@@ -190,11 +160,16 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
     };
   }, [previewImage]);
+
+  const needsApiPreview = useCallback(() => {
+    return settings.characterPath && (
+      settings.characterGlitch !== 0.1 ||
+      settings.characterGlitchSeed !== 0 ||
+      settings.characterGradient !== 'none'
+    );
+  }, [settings]);
 
   return {
     isLoading,
