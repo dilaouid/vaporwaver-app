@@ -134,7 +134,7 @@ export class VaporwaverProcessor {
     }
 
     // Méthode utilitaire pour garantir qu'une valeur est bien un nombre
-    private static ensureNumber(value: any, defaultValue: number = 0): number {
+    private static ensureNumber(value: number | string | undefined | null, defaultValue: number = 0): number {
         if (value === undefined || value === null) {
             return defaultValue;
         }

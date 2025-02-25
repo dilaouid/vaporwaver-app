@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { RequestSchema, RequestData } from '../types';
 import { SecurityUtils } from '../../shared/utils/security';
 import { MAX_FILE_SIZE } from '../config';
+import { GradientType } from "vaporwaver-ts";
 
 export async function validateRequest(request: NextRequest): Promise<RequestData> {
     const formData = await request.formData();
@@ -9,7 +10,7 @@ export async function validateRequest(request: NextRequest): Promise<RequestData
     const formValues = {
         characterGlitch: Number(formData.get("characterGlitch") ?? 0),
         characterGlitchSeed: Number(formData.get("characterGlitchSeed") ?? 0),
-        characterGradient: formData.get("characterGradient") ?? '',
+        characterGradient: (formData.get("characterGradient") ?? 'none') as GradientType,
         characterPathBase64: formData.get("characterPathBase64")?.toString() ?? ''
     };
 

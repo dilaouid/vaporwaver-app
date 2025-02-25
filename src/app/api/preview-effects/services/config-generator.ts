@@ -1,12 +1,13 @@
 import { existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import path from 'path';
+import { GradientType } from 'vaporwaver-ts';
 
 interface EffectsConfig {
   characterPathBase64: string;
   characterGlitch: number | string;
   characterGlitchSeed: number | string;
-  characterGradient: string;
+  characterGradient: GradientType;
 }
 
 export async function createConfig(data: EffectsConfig, characterPath: string, outputPath: string) {

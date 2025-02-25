@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { objectToFormData } from "@/lib/objectToFormData";
+import { GradientType } from "vaporwaver-ts";
 
 interface GenerateParams {
     characterPathBase64: string;
@@ -9,7 +10,7 @@ interface GenerateParams {
     characterRotate: string;
     characterGlitch: string;
     characterGlitchSeed: string;
-    characterGradient: string;
+    characterGradient: GradientType;
     misc: string;
     miscPosX: string;
     miscPosY: string;

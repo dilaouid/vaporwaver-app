@@ -2,9 +2,18 @@ import { existsSync } from 'fs';
 import { readFile, mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { processCharacterOnly } from './direct-character-only';
+import { GradientType } from 'vaporwaver-ts';
+
+interface ImageProcessorConfig {
+  characterPath: string;
+  outputPath: string;
+  characterGlitch?: number;
+  characterGlitchSeed?: number;
+  characterGradient?: GradientType;
+}
 
 export class ImageProcessor {
-  static async processImage(config: any, imageBuffer: Buffer): Promise<Buffer> {
+  static async processImage(config: ImageProcessorConfig, imageBuffer: Buffer): Promise<Buffer> {
     try {
       // S'assurer que les dossiers existent
       const characterDir = path.dirname(config.characterPath);

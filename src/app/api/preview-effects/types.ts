@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { gradients } from '@/lib/gradientPreview';
+import { GradientType } from 'vaporwaver-ts';
 
 export const RequestSchema = z.object({
   characterGlitch: z.number().min(.1).max(10),
   characterGlitchSeed: z.number().int().min(0).max(100),
-  characterGradient: z.enum(gradients as [string, ...string[]]),
+  characterGradient: z.custom<GradientType>((val) => gradients.includes(val as string)),
   characterPathBase64: z.string().base64()
 });
 

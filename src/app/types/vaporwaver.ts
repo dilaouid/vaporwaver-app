@@ -1,8 +1,4 @@
-export type GradientType =
-  | "none" | "autumn" | "bone" | "jet" | "winter" | "rainbow"
-  | "ocean" | "summer" | "spring" | "cool" | "hsv" | "pink"
-  | "hot" | "parula" | "magma" | "inferno" | "plasma"
-  | "viridis" | "cividis" | "deepgreen";
+import { GradientType } from "vaporwaver-ts";
 
 // app/types/vaporwaver.ts
 export interface VaporwaverSettings {
@@ -20,7 +16,7 @@ export interface VaporwaverSettings {
   characterRotate: number;
   characterGlitch: number;
   characterGlitchSeed: number;
-  characterGradient: string;
+  characterGradient: GradientType;
   crt: boolean;
   miscAboveCharacter: boolean;
 }
