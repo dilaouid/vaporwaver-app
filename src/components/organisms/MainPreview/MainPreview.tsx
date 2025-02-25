@@ -46,7 +46,7 @@ export const MainPreview: FC<MainPreviewProps> = ({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { getStoredCharacter, getBlobFromId } = useCharacterStorage();
+  const { getStoredCharacter } = useCharacterStorage();
   const generateMutation = useGenerate();
 
   // Natural dimensions (scale = 1)

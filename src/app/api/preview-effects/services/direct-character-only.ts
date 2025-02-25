@@ -50,7 +50,7 @@ export async function processCharacterOnly(options: CharacterOnlyOptions): Promi
     // console.log('Executing Python with args:', pythonArgs);
 
     // Exécuter le script Python
-    const result = await new Promise<{ success: boolean; output: string; error: string }>((resolve) => {
+    await new Promise<{ success: boolean; output: string; error: string }>((resolve) => {
       const pythonProcess = spawn('python', pythonArgs, {
         env: {
           ...process.env,

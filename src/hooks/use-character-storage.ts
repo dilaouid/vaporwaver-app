@@ -46,15 +46,9 @@ export const useCharacterStorage = () => {
         return fileService.getFileUrl(id);
     }, [fileService]);
     
-    const getBlobFromId = useCallback((id: string | null) => {
-        if (!id) return null;
-        return fileService.getFile(id);
-    }, [fileService]);
-
     return { 
         storeCharacter, 
         getStoredCharacter, 
-        getCharacterUrl,
-        getBlobFromId
+        getCharacterUrl
     };
 };

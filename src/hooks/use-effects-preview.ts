@@ -63,6 +63,14 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
     setHasFetchedPreview(true);
   }, [settings]);
 
+  const needsApiPreview = useCallback(() => {
+    return settings.characterId && (
+      settings.characterGlitch !== 0.1 ||
+      settings.characterGlitchSeed !== 0 ||
+      settings.characterGradient !== 'none'
+    );
+  }, [settings]);
+
   const fetchEffectsPreview = useCallback(async () => {
     if (hasFetchedPreview) return;
 
@@ -154,7 +162,8 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
     settings.characterGlitchSeed,
     settings.characterGradient,
     settings.characterId,
-    fetchEffectsPreview
+    fetchEffectsPreview,
+    needsApiPreview
   ]);
 
   // Clean up on unmount
@@ -168,14 +177,6 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
       }
     };
   }, [previewImage]);
-
-  const needsApiPreview = useCallback(() => {
-    return settings.characterId && (
-      settings.characterGlitch !== 0.1 ||
-      settings.characterGlitchSeed !== 0 ||
-      settings.characterGradient !== 'none'
-    );
-  }, [settings]);
 
   return {
     isLoading,
