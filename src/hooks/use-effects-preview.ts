@@ -49,7 +49,6 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
       URL.revokeObjectURL(previewImage);
       setPreviewImage(null);
     }
-    // Bloquer de nouvelles requêtes tant que les paramètres n'ont pas changé
     setHasFetchedPreview(true);
   }, [rollbackSettings, resetCharacter, previewImage]);
 
@@ -65,7 +64,6 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
   }, [settings]);
 
   const fetchEffectsPreview = useCallback(async () => {
-    // Ne lancez pas de requête si on a déjà obtenu un résultat pour ces paramètres
     if (hasFetchedPreview) return;
 
     const now = Date.now();
@@ -84,13 +82,21 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const characterBase64 = getStoredCharacter();
-    if (!characterBase64) {
+    // Extraire l'ID du character des settings
+    const characterId = settings.characterId;
+    if (!characterId) {
       setIsLoading(false);
       return;
     }
 
     try {
+      // Obtenir le character en base64
+      const characterBase64 = await getStoredCharacter(characterId);
+      if (!characterBase64) {
+        setIsLoading(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('characterGlitch', String(settings.characterGlitch));
       formData.append('characterGlitchSeed', String(settings.characterGlitchSeed));
@@ -124,11 +130,11 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
     settings.characterGlitch,
     settings.characterGlitchSeed,
     settings.characterGradient,
-    settings.characterPath
+    settings.characterId
   ]);
 
   useEffect(() => {
-    if (isDragging || isRollbackInProgress || !settings.characterPath || !needsApiPreview()) {
+    if (isDragging || isRollbackInProgress || !settings.characterId || !needsApiPreview()) {
       return;
     }
     const timeoutId = setTimeout(() => {
@@ -147,7 +153,7 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
     settings.characterGlitch,
     settings.characterGlitchSeed,
     settings.characterGradient,
-    settings.characterPath,
+    settings.characterId,
     fetchEffectsPreview
   ]);
 
@@ -164,7 +170,7 @@ export function useEffectsPreview(settings: VaporwaverSettings, isDragging: bool
   }, [previewImage]);
 
   const needsApiPreview = useCallback(() => {
-    return settings.characterPath && (
+    return settings.characterId && (
       settings.characterGlitch !== 0.1 ||
       settings.characterGlitchSeed !== 0 ||
       settings.characterGradient !== 'none'

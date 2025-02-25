@@ -5,14 +5,12 @@ import { Upload } from "lucide-react";
 interface FileInputProps {
   label: string;
   onChange: (file: File) => void;
-  accept?: string;
   colorScheme?: "purple" | "cyan";
 }
 
 export const FileInput: React.FC<FileInputProps> = ({
   label,
   onChange,
-  accept = "image/png",
   colorScheme = "purple"
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,9 +71,9 @@ export const FileInput: React.FC<FileInputProps> = ({
       </Label>
       <div
         className={`relative bg-black/50 border ${getBorderColor()} rounded-md cursor-pointer 
-                  ${getHoverColor()} transition-all duration-300 overflow-hidden
-                  ${isDragging ? "ring-2 ring-offset-0 ring-offset-black" : ""}
-                  ${colorScheme === "purple" ? "ring-purple-400" : "ring-cyan-400"}`}
+          ${getHoverColor()} transition-all duration-300 overflow-hidden
+          ${isDragging ? "ring-2 ring-offset-0 ring-offset-black" : ""}
+          ${colorScheme === "purple" ? "ring-purple-400" : "ring-cyan-400"}`}
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -85,7 +83,7 @@ export const FileInput: React.FC<FileInputProps> = ({
           type="file"
           ref={inputRef}
           onChange={handleChange}
-          accept={accept}
+          accept="image/*"
           className="hidden"
         />
         
@@ -96,16 +94,16 @@ export const FileInput: React.FC<FileInputProps> = ({
         
         <div className="relative z-10 flex items-center px-3 py-3">
           <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center 
-                        ${colorScheme === "purple" ? "bg-purple-500/20" : "bg-cyan-500/20"}`}>
-            <Upload className={`w-4 h-4 ${getIconColor()}`} />
+            ${colorScheme === "purple" ? "bg-purple-500/20" : "bg-cyan-500/20"}`}>
+        <Upload className={`w-4 h-4 ${getIconColor()}`} />
           </div>
           <div className="ml-3 flex-grow">
-            <span className={`${colorScheme === "purple" ? "text-purple-100" : "text-cyan-100"} text-sm font-medium`}>
-              {fileName || "Choose PNG file..."}
-            </span>
-            <p className="text-gray-400 text-xs mt-0.5">
-              Drag & drop or click to browse
-            </p>
+        <span className={`${colorScheme === "purple" ? "text-purple-100" : "text-cyan-100"} text-sm font-medium`}>
+          {fileName || "Choose image file..."}
+        </span>
+        <p className="text-gray-400 text-xs mt-0.5">
+          Drag & drop or click to browse
+        </p>
           </div>
         </div>
       </div>

@@ -16,6 +16,7 @@ import { GradientSwatch } from "@/components/atoms/GradientSwatch";
 import { gradients } from "@/lib/gradientPreview";
 import { Loader2, Upload, Zap, Move, Rotate3D, Sparkles } from "lucide-react";
 import { useStore } from "@/store/useStore";
+import { useCharacterStorage } from "@/hooks/use-character-storage";
 
 interface CharacterControlsProps {
   settings: VaporwaverSettings;
@@ -31,6 +32,7 @@ export const CharacterControls: React.FC<CharacterControlsProps> = ({
   onDragStateChange,
 }) => {
   const { setSettings } = useStore();
+  const { storeCharacter } = useCharacterStorage();
 
   const updateSetting = useCallback(
     (
@@ -48,6 +50,24 @@ export const CharacterControls: React.FC<CharacterControlsProps> = ({
     },
     [updateSetting]
   );
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    try {
+      const result = await storeCharacter(file);
+      
+      if (result) {
+        // Mettre à jour les settings avec l'ID et le fichier
+        setSettings({ 
+          characterPath: file,
+          characterId: result.id 
+        });
+        
+        onFileChange(file);
+      }
+    } catch (error) {
+      console.error('Error handling file upload:', error);
+    }
+  }, [storeCharacter, setSettings, onFileChange]);
 
   return (
     <Card className="h-full bg-black/40 backdrop-blur-xl border-purple-500/20 rounded-xl overflow-hidden relative">
@@ -84,7 +104,7 @@ export const CharacterControls: React.FC<CharacterControlsProps> = ({
             </div>
             <FileInput
               label="Character Image"
-              onChange={onFileChange}
+              onChange={handleFileUpload}
               colorScheme="purple"
             />
           </div>

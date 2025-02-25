@@ -82,71 +82,81 @@ export const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             {/* Misc Section */}
             <section className="space-y-4">
               <div className="flex items-center space-x-2">
-                <ImageIcon className="w-4 h-4 text-cyan-300" />
-                <h3 className="text-lg font-semibold text-cyan-100">Misc Item</h3>
+              <ImageIcon className="w-4 h-4 text-cyan-300" />
+              <h3 className="text-lg font-semibold text-cyan-100">Misc Item</h3>
               </div>
               
               <div className="p-4 bg-black/30 rounded-lg border border-cyan-500/20">
-                <ImageSelector
-                  label="Misc Item"
-                  options={assets.miscs}
-                  value={settings.misc}
-                  onChange={(value) => setSettings({ misc: value })}
+              <ImageSelector
+                label="Misc Item"
+                options={assets.miscs}
+                value={settings.misc}
+                onChange={(value) => setSettings({ misc: value })}
+                colorScheme="cyan"
+              />
+              
+              <div className={`mt-4 grid grid-cols-2 gap-3 ${settings.misc === "none" ? "opacity-50 pointer-events-none" : ""}`}>
+                <div className="space-y-3">
+                <ControlGroup
+                  label="Position X"
+                  value={settings.miscPosX}
+                  min={-100}
+                  max={100}
+                  onChange={(value) => updateSetting("miscPosX", value)}
+                  step={1}
+                  onDragStateChange={onDragStateChange}
                   colorScheme="cyan"
+                  disabled={settings.misc === "none"}
                 />
-                
-                <div className={`mt-4 grid grid-cols-2 gap-3 ${settings.misc === "none" ? "opacity-50 pointer-events-none" : ""}`}>
-                  <div className="space-y-3">
-                    <ControlGroup
-                      label="Position X"
-                      value={settings.miscPosX}
-                      min={-100}
-                      max={100}
-                      onChange={(value) => updateSetting("miscPosX", value)}
-                      step={1}
-                      onDragStateChange={onDragStateChange}
-                      colorScheme="cyan"
-                      disabled={settings.misc === "none"}
-                    />
-                    <ControlGroup
-                      label="Scale"
-                      value={settings.miscScale}
-                      min={1}
-                      max={200}
-                      onChange={(value) => updateSetting("miscScale", value)}
-                      unit="%"
-                      step={1}
-                      onDragStateChange={onDragStateChange}
-                      colorScheme="cyan"
-                      disabled={settings.misc === "none"}
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <ControlGroup
-                      label="Position Y"
-                      value={settings.miscPosY}
-                      min={-100}
-                      max={100}
-                      onChange={(value) => updateSetting("miscPosY", value)}
-                      step={1}
-                      onDragStateChange={onDragStateChange}
-                      colorScheme="cyan"
-                      disabled={settings.misc === "none"}
-                    />
-                    <ControlGroup
-                      label="Rotation"
-                      value={settings.miscRotate}
-                      min={-360}
-                      max={360}
-                      onChange={(value) => updateSetting("miscRotate", value)}
-                      unit="°"
-                      step={1}
-                      onDragStateChange={onDragStateChange}
-                      colorScheme="cyan"
-                      disabled={settings.misc === "none"}
-                    />
-                  </div>
+                <ControlGroup
+                  label="Scale"
+                  value={settings.miscScale}
+                  min={1}
+                  max={200}
+                  onChange={(value) => updateSetting("miscScale", value)}
+                  unit="%"
+                  step={1}
+                  onDragStateChange={onDragStateChange}
+                  colorScheme="cyan"
+                  disabled={settings.misc === "none"}
+                />
                 </div>
+                <div className="space-y-3">
+                <ControlGroup
+                  label="Position Y"
+                  value={settings.miscPosY}
+                  min={-100}
+                  max={100}
+                  onChange={(value) => updateSetting("miscPosY", value)}
+                  step={1}
+                  onDragStateChange={onDragStateChange}
+                  colorScheme="cyan"
+                  disabled={settings.misc === "none"}
+                />
+                <ControlGroup
+                  label="Rotation"
+                  value={settings.miscRotate}
+                  min={-360}
+                  max={360}
+                  onChange={(value) => updateSetting("miscRotate", value)}
+                  unit="°"
+                  step={1}
+                  onDragStateChange={onDragStateChange}
+                  colorScheme="cyan"
+                  disabled={settings.misc === "none"}
+                />
+                </div>
+              </div>
+
+              <div className={`mt-4 flex items-center justify-between ${settings.misc === "none" ? "opacity-50 pointer-events-none" : ""}`}>
+                <Label className="text-cyan-100">Above Character</Label>
+                <Switch
+                checked={settings.miscAboveCharacter}
+                onCheckedChange={(checked) => updateSetting("miscAboveCharacter", checked)}
+                className="data-[state=checked]:bg-cyan-500"
+                disabled={settings.misc === "none"}
+                />
+              </div>
               </div>
             </section>
 

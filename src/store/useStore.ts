@@ -1,8 +1,9 @@
-// store/useStore.ts
 import { create } from 'zustand';
 import { VaporwaverSettings } from '@/app/types/vaporwaver';
+import { FileService } from '@/services/fileService';
 
 const initialSettings: VaporwaverSettings = {
+    characterId: "",
     characterPath: "",
     background: "default",
     misc: "none",
@@ -18,6 +19,7 @@ const initialSettings: VaporwaverSettings = {
     characterGlitchSeed: 0,
     characterGradient: "none",
     crt: false,
+    miscAboveCharacter: false
 };
 
 interface StoreState {
@@ -28,10 +30,12 @@ interface StoreState {
     setCharacterUrl: (url: string | null) => void;
     rollbackSettings: (settings: VaporwaverSettings) => void;
     resetCharacter: () => void;
+    fileService: FileService;
 }
 
 export const useStore = create<StoreState>((set) => ({
     settings: initialSettings,
+    fileService: FileService.getInstance(),
     characterUrl: null,
     isRollbackInProgress: false,
     setSettings: (newSettings: Partial<VaporwaverSettings>) =>

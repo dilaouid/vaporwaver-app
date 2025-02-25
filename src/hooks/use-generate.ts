@@ -17,6 +17,7 @@ interface GenerateParams {
     miscRotate: string;
     background: string;
     crt?: string;
+    miscAboveCharacter?: string;
 }
 
 export function useGenerate() {

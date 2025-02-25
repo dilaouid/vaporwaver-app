@@ -15,5 +15,6 @@ export const GenerateSchema = BaseImageSchema.extend({
     miscPosX: z.number().default(0),
     miscPosY: z.number().default(0),
     miscScale: z.number().default(100),
-    miscRotate: z.number().default(0)
+    miscRotate: z.number().default(0),
+    miscAboveCharacter: z.boolean().default(false)
 });

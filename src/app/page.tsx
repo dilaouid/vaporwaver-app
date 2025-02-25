@@ -16,7 +16,8 @@ export default function Home() {
 
   // Custom hooks
   const { settings, characterUrl, setSettings, setCharacterUrl } = useStore();
-  const { storeCharacter } = useCharacterStorage();
+  const { getCharacterUrl } = useCharacterStorage();
+
   const { isLoading: effectsLoading, previewImage } = useEffectsPreview(
     settings,
     isDragging
@@ -37,27 +38,24 @@ export default function Home() {
       if (characterUrl) {
         URL.revokeObjectURL(characterUrl);
       }
-      await storeCharacter(file);
-      const url = URL.createObjectURL(file);
-      setCharacterUrl(url);
-      setSettings({ characterPath: file });
-    },
-    [characterUrl, storeCharacter, setSettings, setCharacterUrl]
-  );
-
-  // Clean localStorage on mount
-  useEffect(() => {
-    localStorage.clear();
-  }, []);
-
-  // Clean up object URL on unmount
-  useEffect(() => {
-    return () => {
-      if (characterUrl) {
-        URL.revokeObjectURL(characterUrl);
+      if (settings.characterId) {
+        const url = getCharacterUrl(settings.characterId);
+        if (url) {
+          setCharacterUrl(url);
+        }
       }
-    };
-  }, [characterUrl]);
+    },
+    [characterUrl, settings.characterId, getCharacterUrl, setCharacterUrl]
+);
+
+  useEffect(() => {
+    if (settings.characterId && !characterUrl) {
+      const url = getCharacterUrl(settings.characterId);
+      if (url) {
+        setCharacterUrl(url);
+      }
+    }
+  }, [settings.characterId, characterUrl, getCharacterUrl, setCharacterUrl]);
 
   const handleCloseModal = useCallback(() => {
     setModalOpen(false);

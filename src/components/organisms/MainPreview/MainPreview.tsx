@@ -1,13 +1,11 @@
-"use client";
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo, FC } from "react";
 import { VaporwaverSettings } from "@/app/types/vaporwaver";
 import { Button } from "@/components/ui/button";
-import { FinalPreviewModal, /* FloatingThumbnail */ } from "@/components/molecules";
+import { FinalPreviewModal } from "@/components/molecules";
 import { CanvasLayer, TransformedImageLayer } from "@/components/atoms";
 import { useImageDimensions } from "@/hooks/use-image-dimensions";
 import { useGenerate } from "@/hooks/use-generate";
 import { useCharacterStorage } from "@/hooks/use-character-storage";
-import { blobToBase64 } from "@/lib/base64";
 import { Loader2 } from "lucide-react";
 
 interface MainPreviewProps {
@@ -28,7 +26,7 @@ interface MainPreviewProps {
 const CANVAS_WIDTH = 460;
 const CANVAS_HEIGHT = 595;
 
-export const MainPreview: React.FC<MainPreviewProps> = ({
+export const MainPreview: FC<MainPreviewProps> = ({
   backgroundUrl = "/backgrounds/default.png",
   characterUrl,
   miscUrl,
@@ -48,7 +46,7 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { getStoredCharacter } = useCharacterStorage();
+  const { getStoredCharacter, getBlobFromId } = useCharacterStorage();
   const generateMutation = useGenerate();
 
   // Natural dimensions (scale = 1)
@@ -57,11 +55,8 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
     miscUrl && miscUrl !== "/miscs/none.png" ? miscUrl : null,
     1
   );
-
-  // Scroll to preview function
-  /* const scrollToPreview = useCallback(() => {
-    containerRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []); */
+  const zIndexCharacter = 20;
+  const zIndexMisc = settings.miscAboveCharacter ? 25 : 10;
 
   // Safely set and maintain loading state
   const setLoadingState = useCallback((isLoading: boolean) => {
@@ -115,38 +110,44 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
     };
   }, []);
 
-  const characterPosition = React.useMemo(() => {
+  const characterPosition = useMemo(() => {
     if (!naturalCharacter) return { left: 0, top: 0 };
+    // First calculate center position
+    const centerLeft = CANVAS_WIDTH / 2 - naturalCharacter.naturalWidth / 2;
+    const centerTop = CANVAS_HEIGHT / 2 - naturalCharacter.naturalHeight / 2;
+    
+    // Then adjust based on settings (converting percentage to pixels)
     return {
-      left:
-        (CANVAS_WIDTH * settings.characterXPos) / 100 -
-        naturalCharacter.naturalWidth / 2,
-      top:
-        (CANVAS_HEIGHT * settings.characterYPos) / 100 -
-        naturalCharacter.naturalHeight / 2,
+      left: centerLeft + (CANVAS_WIDTH * settings.characterXPos) / 100,
+      top: centerTop + (CANVAS_HEIGHT * settings.characterYPos) / 100,
     };
   }, [settings.characterXPos, settings.characterYPos, naturalCharacter]);
 
   // For misc, using center anchor
-  const miscPosition = React.useMemo(() => {
+  const miscPosition = useMemo(() => {
     if (!naturalMisc) return { left: 0, top: 0 };
+    // First calculate center position
+    const centerLeft = CANVAS_WIDTH / 2 - naturalMisc.naturalWidth / 2;
+    const centerTop = CANVAS_HEIGHT / 2 - naturalMisc.naturalHeight / 2;
+    
+    // Then adjust based on settings (converting percentage to pixels)
     return {
-      left: (CANVAS_WIDTH * settings.miscPosX) / 100 - naturalMisc.naturalWidth / 2,
-      top: (CANVAS_HEIGHT * settings.miscPosY) / 100 - naturalMisc.naturalHeight / 2,
+      left: centerLeft + (CANVAS_WIDTH * settings.miscPosX) / 100,
+      top: centerTop + (CANVAS_HEIGHT * settings.miscPosY) / 100,
     };
   }, [settings.miscPosX, settings.miscPosY, naturalMisc]);
 
   const handleGenerateFinal = useCallback(async () => {
     setLoadingState(true);
     
-    if (!settings.characterPath) {
+    if (!settings.characterId) {
       alert("Please select a character image to generate a preview.");
       setLoadingState(false);
       return;
     }
     
     try {
-      let processedBase64: string | null = null;
+      let characterBase64: string | null = null;
       
       // Get the right image source - either processed or original
       if (effectPreviewUrl) {
@@ -154,23 +155,30 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
           const res = await fetch(effectPreviewUrl);
           if (!res.ok) throw new Error("Failed to fetch effect preview");
           const blob = await res.blob();
-          processedBase64 = await blobToBase64(blob);
+          const reader = new FileReader();
+          characterBase64 = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          }) as string;
+          // Extraire la partie base64 de data:image/png;base64,...
+          characterBase64 = characterBase64.split(',')[1];
         } catch (error) {
           console.error("Error fetching effect preview:", error);
           // Fall back to stored character if effect fetch fails
-          processedBase64 = getStoredCharacter();
+          characterBase64 = await getStoredCharacter(settings.characterId);
         }
       } else {
-        processedBase64 = getStoredCharacter();
+        characterBase64 = await getStoredCharacter(settings.characterId);
       }
       
-      if (!processedBase64) {
+      if (!characterBase64) {
         throw new Error("No processed character data available");
       }
 
       generateMutation.mutate(
         {
-          characterPathBase64: processedBase64,
+          characterPathBase64: characterBase64,
           characterXPos: String(settings.characterXPos),
           characterYPos: String(settings.characterYPos),
           characterScale: String(settings.characterScale),
@@ -185,6 +193,7 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
           miscRotate: String(settings.miscRotate),
           background: settings.background,
           crt: settings.crt ? "true" : "",
+          miscAboveCharacter: settings.miscAboveCharacter ? "true" : ""
         },
         {
           onSuccess: (blob) => {
@@ -251,7 +260,7 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
                 top={miscPosition.top}
                 scale={settings.miscScale / 100}
                 rotate={-settings.miscRotate}
-                zIndex={10}
+                zIndex={zIndexMisc}
                 transformOrigin="center"
               />
             )}
@@ -268,7 +277,8 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
                   top={characterPosition.top}
                   scale={settings.characterScale / 100}
                   rotate={-settings.characterRotate}
-                  zIndex={20}
+                  zIndex={zIndexCharacter}
+                  transformOrigin="center"
                 />
               </>
             )}
@@ -311,7 +321,7 @@ export const MainPreview: React.FC<MainPreviewProps> = ({
           onClick={handleGenerateFinal}
           onMouseEnter={() => setIsButtonHovered(true)}
           onMouseLeave={() => setIsButtonHovered(false)}
-          disabled={showLoading || !settings.characterPath}
+          disabled={showLoading || !settings.characterId}
         >
           <span className="relative z-10 flex items-center justify-center gap-3 text-lg tracking-wider">
             {showLoading ? (
