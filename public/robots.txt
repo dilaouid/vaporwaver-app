@@ -1,0 +1,33 @@
+User-agent: *
+Allow: /
+Disallow: /_next/static/chunks/
+Disallow: /chunks/
+Disallow: /api/
+Disallow: /.env
+Disallow: /.git/
+
+Allow: /$
+Allow: /index.html$
+Allow: /assets/
+
+Disallow: /api/assets
+Disallow: /api/generate
+Disallow: /api/preview-effects
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+Host: vaporwaver.dilaouid.fr
+Sitemap: https://vaporwaver.dilaouid.fr/sitemap.xml
